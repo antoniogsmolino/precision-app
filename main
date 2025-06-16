@@ -1,0 +1,1333 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Precision - Your Personal Excellence System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-blue: #007AFF;
+            --secondary-blue: #5AC8FA;
+            --glass-white: rgba(255, 255, 255, 0.7);
+            --glass-dark: rgba(0, 0, 0, 0.05);
+            --text-primary: #1C1C1E;
+            --text-secondary: #8E8E93;
+            --success: #34C759;
+            --warning: #FF9500;
+            --danger: #FF3B30;
+            --background: #F2F2F7;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #E5E5EA 0%, #F2F2F7 100%);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Glassmorphism containers */
+        .glass {
+            background: var(--glass-white);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .glass-dark {
+            background: rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+
+        /* Header */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            padding: 20px;
+            background: var(--glass-white);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary-blue), var(--secondary-blue));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .profile-selector {
+            display: flex;
+            gap: 10px;
+            padding: 5px;
+            background: var(--glass-dark);
+            border-radius: 15px;
+        }
+
+        .profile-btn {
+            padding: 8px 16px;
+            border: none;
+            background: transparent;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        .profile-btn.active {
+            background: white;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Main container */
+        .container {
+            max-width: 1200px;
+            margin: 100px auto 40px;
+            padding: 0 20px;
+        }
+
+        /* Navigation tabs */
+        .nav-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            overflow-x: auto;
+            padding-bottom: 10px;
+        }
+
+        .nav-tab {
+            padding: 12px 24px;
+            background: var(--glass-white);
+            border: none;
+            border-radius: 15px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+
+        .nav-tab.active {
+            background: var(--primary-blue);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+        }
+
+        /* Content sections */
+        .content-section {
+            display: none;
+        }
+
+        .content-section.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Task Manager */
+        .task-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .add-task-btn {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, var(--primary-blue), var(--secondary-blue));
+            color: white;
+            border: none;
+            border-radius: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .add-task-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+        }
+
+        .task-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .task-item {
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .task-item:hover {
+            transform: translateX(5px);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+        }
+
+        .task-checkbox {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: 2px solid var(--primary-blue);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .task-checkbox.checked {
+            background: var(--primary-blue);
+        }
+
+        .task-checkbox.checked::after {
+            content: '✓';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-weight: bold;
+        }
+
+        .task-content {
+            flex: 1;
+        }
+
+        .task-title {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .task-meta {
+            display: flex;
+            gap: 15px;
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .task-priority {
+            padding: 2px 8px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .priority-high {
+            background: rgba(255, 59, 48, 0.1);
+            color: var(--danger);
+        }
+
+        .priority-medium {
+            background: rgba(255, 149, 0, 0.1);
+            color: var(--warning);
+        }
+
+        .priority-low {
+            background: rgba(52, 199, 89, 0.1);
+            color: var(--success);
+        }
+
+        /* Calendar */
+        .calendar-container {
+            padding: 20px;
+        }
+
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 10px;
+        }
+
+        .calendar-day {
+            aspect-ratio: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border-radius: 15px;
+            background: var(--glass-white);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .calendar-day:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .calendar-day.today {
+            background: var(--primary-blue);
+            color: white;
+        }
+
+        /* Time blocks */
+        .time-blocks {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .time-block {
+            padding: 15px;
+            background: var(--glass-white);
+            border-radius: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: move;
+            transition: all 0.3s ease;
+        }
+
+        .time-block:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .time-block.dragging {
+            opacity: 0.5;
+        }
+
+        /* Diary */
+        .diary-container {
+            padding: 20px;
+        }
+
+        .diary-textarea {
+            width: 100%;
+            min-height: 300px;
+            padding: 20px;
+            background: var(--glass-white);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 15px;
+            font-size: 16px;
+            line-height: 1.6;
+            resize: vertical;
+            transition: all 0.3s ease;
+        }
+
+        .diary-textarea:focus {
+            outline: none;
+            border-color: var(--primary-blue);
+            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+        }
+
+        .diary-actions {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        /* Performance Dashboard */
+        .performance-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .performance-card {
+            padding: 20px;
+            text-align: center;
+        }
+
+        .performance-score {
+            font-size: 48px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary-blue), var(--secondary-blue));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin: 10px 0;
+        }
+
+        .performance-label {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 10px;
+        }
+
+        .progress-ring {
+            width: 120px;
+            height: 120px;
+            margin: 20px auto;
+        }
+
+        .progress-ring-circle {
+            stroke: var(--primary-blue);
+            stroke-width: 8;
+            fill: transparent;
+            stroke-dasharray: 377;
+            stroke-dashoffset: 377;
+            transition: stroke-dashoffset 1s ease;
+            transform: rotate(-90deg);
+            transform-origin: 50% 50%;
+        }
+
+        /* AI Assistant */
+        .ai-container {
+            padding: 20px;
+        }
+
+        .ai-chat {
+            min-height: 400px;
+            background: var(--glass-white);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            overflow-y: auto;
+        }
+
+        .ai-message {
+            margin-bottom: 15px;
+            padding: 15px;
+            border-radius: 15px;
+            max-width: 80%;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .ai-message.user {
+            background: var(--primary-blue);
+            color: white;
+            margin-left: auto;
+        }
+
+        .ai-message.assistant {
+            background: var(--glass-dark);
+        }
+
+        .ai-input-container {
+            display: flex;
+            gap: 10px;
+        }
+
+        .ai-input {
+            flex: 1;
+            padding: 15px;
+            background: var(--glass-white);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 15px;
+            font-size: 16px;
+        }
+
+        .ai-send-btn {
+            padding: 15px 30px;
+            background: var(--primary-blue);
+            color: white;
+            border: none;
+            border-radius: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        /* Rewards */
+        .rewards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 20px;
+        }
+
+        .badge {
+            aspect-ratio: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .badge:hover {
+            transform: scale(1.05);
+        }
+
+        .badge-icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+
+        .badge-name {
+            font-size: 14px;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .badge.locked {
+            opacity: 0.3;
+            filter: grayscale(1);
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(10px);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            width: 90%;
+            max-width: 500px;
+            padding: 30px;
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: var(--text-secondary);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            padding: 12px 16px;
+            background: var(--glass-white);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            outline: none;
+            border-color: var(--primary-blue);
+            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: var(--primary-blue);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: var(--glass-dark);
+            color: var(--text-primary);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                margin-top: 80px;
+            }
+
+            .performance-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .nav-tabs {
+                overflow-x: scroll;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            .ai-message {
+                max-width: 90%;
+            }
+
+            .calendar-grid {
+                grid-template-columns: repeat(7, minmax(40px, 1fr));
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <h1 class="logo">Precision</h1>
+            <div class="profile-selector">
+                <button class="profile-btn active" data-profile="work">Lavoro</button>
+                <button class="profile-btn" data-profile="family">Famiglia</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Navigation Tabs -->
+        <div class="nav-tabs">
+            <button class="nav-tab active" data-section="tasks">Tasks</button>
+            <button class="nav-tab" data-section="calendar">Calendario</button>
+            <button class="nav-tab" data-section="diary">Diario</button>
+            <button class="nav-tab" data-section="performance">Performance</button>
+            <button class="nav-tab" data-section="ai">AI Assistant</button>
+            <button class="nav-tab" data-section="rewards">Ricompense</button>
+        </div>
+
+        <!-- Content Sections -->
+        <!-- Tasks Section -->
+        <section id="tasks" class="content-section active">
+            <div class="task-header">
+                <h2>I Miei Task</h2>
+                <button class="add-task-btn" onclick="openTaskModal()">+ Nuovo Task</button>
+            </div>
+            <div class="task-list glass" id="taskList">
+                <!-- Tasks will be dynamically added here -->
+            </div>
+        </section>
+
+        <!-- Calendar Section -->
+        <section id="calendar" class="content-section">
+            <div class="glass calendar-container">
+                <div class="calendar-header">
+                    <button class="btn btn-secondary" onclick="previousMonth()">←</button>
+                    <h2 id="currentMonth">Novembre 2024</h2>
+                    <button class="btn btn-secondary" onclick="nextMonth()">→</button>
+                </div>
+                <div class="calendar-grid" id="calendarGrid">
+                    <!-- Calendar days will be generated here -->
+                </div>
+                <h3 style="margin-top: 30px; margin-bottom: 15px;">Time Blocks Oggi</h3>
+                <div class="time-blocks" id="timeBlocks">
+                    <!-- Time blocks will be added here -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Diary Section -->
+        <section id="diary" class="content-section">
+            <div class="glass diary-container">
+                <h2>Diario Giornaliero</h2>
+                <p style="color: var(--text-secondary); margin: 10px 0;">Scrivi le tue riflessioni sulla giornata</p>
+                <textarea class="diary-textarea" id="diaryEntry" placeholder="Oggi ho..."></textarea>
+                <div class="diary-actions">
+                    <button class="btn btn-primary" onclick="saveDiary()">Salva Diario</button>
+                    <button class="btn btn-secondary" onclick="addPhoto()">📷 Aggiungi Foto</button>
+                    <button class="btn btn-secondary" onclick="addAudio()">🎤 Registra Audio</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Performance Section -->
+        <section id="performance" class="content-section">
+            <h2 style="margin-bottom: 20px;">Le Tue Performance</h2>
+            <div class="performance-grid">
+                <div class="glass performance-card">
+                    <div class="performance-label">Precisione</div>
+                    <div class="performance-score">92%</div>
+                    <svg class="progress-ring">
+                        <circle cx="60" cy="60" r="60" stroke="#eee" stroke-width="8" fill="none"/>
+                        <circle class="progress-ring-circle" cx="60" cy="60" r="60" style="stroke-dashoffset: 30;"/>
+                    </svg>
+                </div>
+                <div class="glass performance-card">
+                    <div class="performance-label">Puntualità</div>
+                    <div class="performance-score">88%</div>
+                    <svg class="progress-ring">
+                        <circle cx="60" cy="60" r="60" stroke="#eee" stroke-width="8" fill="none"/>
+                        <circle class="progress-ring-circle" cx="60" cy="60" r="60" style="stroke-dashoffset: 45;"/>
+                    </svg>
+                </div>
+                <div class="glass performance-card">
+                    <div class="performance-label">Dettaglio</div>
+                    <div class="performance-score">95%</div>
+                    <svg class="progress-ring">
+                        <circle cx="60" cy="60" r="60" stroke="#eee" stroke-width="8" fill="none"/>
+                        <circle class="progress-ring-circle" cx="60" cy="60" r="60" style="stroke-dashoffset: 19;"/>
+                    </svg>
+                </div>
+            </div>
+            <div class="glass" style="padding: 20px;">
+                <h3>Trend Settimanale</h3>
+                <canvas id="performanceChart" width="400" height="200"></canvas>
+            </div>
+        </section>
+
+        <!-- AI Assistant Section -->
+        <section id="ai" class="content-section">
+            <div class="glass ai-container">
+                <h2>AI Assistant - Claude</h2>
+                <div class="ai-chat" id="aiChat">
+                    <div class="ai-message assistant">
+                        Ciao! Sono il tuo assistente personale per l'eccellenza. Come posso aiutarti a migliorare oggi?
+                    </div>
+                </div>
+                <div class="ai-input-container">
+                    <input type="text" class="ai-input" id="aiInput" placeholder="Chiedi un consiglio..." onkeypress="handleAiInput(event)">
+                    <button class="ai-send-btn" onclick="sendAiMessage()">Invia</button>
+                </div>
+                <div style="margin-top: 20px;">
+                    <h4>Prompt Suggeriti:</h4>
+                    <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px;">
+                        <button class="btn btn-secondary" onclick="usePrompt('Analizza il mio diario e dimmi dove ho perso tempo oggi')">📊 Analisi Tempo</button>
+                        <button class="btn btn-secondary" onclick="usePrompt('Suggeriscimi come migliorare la mia routine mattutina')">🌅 Routine Mattutina</button>
+                        <button class="btn btn-secondary" onclick="usePrompt('Dove sto sbagliando nella mia pianificazione?')">📅 Pianificazione</button>
+                        <button class="btn btn-secondary" onclick="usePrompt('Dammi 3 azioni precise per essere più ordinato domani')">✨ Azioni Precise</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Rewards Section -->
+        <section id="rewards" class="content-section">
+            <h2 style="margin-bottom: 20px;">Ricompense e Badge</h2>
+            <div class="rewards-grid">
+                <div class="glass badge">
+                    <div class="badge-icon">🏆</div>
+                    <div class="badge-name">Prima Settimana Perfetta</div>
+                </div>
+                <div class="glass badge">
+                    <div class="badge-icon">⚡</div>
+                    <div class="badge-name">10 Task in un Giorno</div>
+                </div>
+                <div class="glass badge locked">
+                    <div class="badge-icon">🎯</div>
+                    <div class="badge-name">100% Precisione</div>
+                </div>
+                <div class="glass badge locked">
+                    <div class="badge-icon">📝</div>
+                    <div class="badge-name">30 Giorni di Diario</div>
+                </div>
+                <div class="glass badge">
+                    <div class="badge-icon">⏰</div>
+                    <div class="badge-name">Mai in Ritardo</div>
+                </div>
+                <div class="glass badge locked">
+                    <div class="badge-icon">🌟</div>
+                    <div class="badge-name">Master dell'Ordine</div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Task Modal -->
+    <div class="modal" id="taskModal">
+        <div class="modal-content glass">
+            <div class="modal-header">
+                <h3>Nuovo Task</h3>
+                <button class="modal-close" onclick="closeTaskModal()">×</button>
+            </div>
+            <form id="taskForm">
+                <div class="form-group">
+                    <label class="form-label">Titolo</label>
+                    <input type="text" class="form-input" id="taskTitle" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Descrizione</label>
+                    <textarea class="form-textarea" id="taskDescription" rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Categoria</label>
+                    <select class="form-select" id="taskCategory">
+                        <option value="work">Lavoro</option>
+                        <option value="personal">Personale</option>
+                        <option value="family">Famiglia</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Priorità</label>
+                    <select class="form-select" id="taskPriority">
+                        <option value="high">Alta</option>
+                        <option value="medium">Media</option>
+                        <option value="low">Bassa</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Data e Ora</label>
+                    <input type="datetime-local" class="form-input" id="taskDateTime">
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeTaskModal()">Annulla</button>
+                    <button type="submit" class="btn btn-primary">Salva Task</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // App State
+        let appState = {
+            currentProfile: 'work',
+            tasks: [],
+            diaryEntries: [],
+            performance: {
+                precision: 92,
+                punctuality: 88,
+                detail: 95
+            },
+            badges: [
+                { id: 1, name: 'Prima Settimana Perfetta', icon: '🏆', unlocked: true },
+                { id: 2, name: '10 Task in un Giorno', icon: '⚡', unlocked: true },
+                { id: 3, name: '100% Precisione', icon: '🎯', unlocked: false },
+                { id: 4, name: '30 Giorni di Diario', icon: '📝', unlocked: false },
+                { id: 5, name: 'Mai in Ritardo', icon: '⏰', unlocked: true },
+                { id: 6, name: 'Master dell\'Ordine', icon: '🌟', unlocked: false }
+            ],
+            currentMonth: new Date()
+        };
+
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeApp();
+        });
+
+        function initializeApp() {
+            // Load saved data
+            loadAppState();
+            
+            // Setup event listeners
+            setupEventListeners();
+            
+            // Render initial content
+            renderTasks();
+            renderCalendar();
+            updatePerformanceCharts();
+            
+            // Check time-based events
+            checkTimeBasedEvents();
+        }
+
+        function setupEventListeners() {
+            // Navigation tabs
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                tab.addEventListener('click', function() {
+                    switchTab(this.dataset.section);
+                });
+            });
+
+            // Profile selector
+            document.querySelectorAll('.profile-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    switchProfile(this.dataset.profile);
+                });
+            });
+
+            // Task form
+            document.getElementById('taskForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                saveTask();
+            });
+        }
+
+        function switchTab(section) {
+            // Update tabs
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelector(`[data-section="${section}"]`).classList.add('active');
+
+            // Update content
+            document.querySelectorAll('.content-section').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.getElementById(section).classList.add('active');
+        }
+
+        function switchProfile(profile) {
+            appState.currentProfile = profile;
+            
+            // Update buttons
+            document.querySelectorAll('.profile-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.querySelector(`[data-profile="${profile}"]`).classList.add('active');
+            
+            // Refresh content
+            renderTasks();
+            saveAppState();
+        }
+
+        // Task Management
+        function openTaskModal() {
+            document.getElementById('taskModal').classList.add('active');
+            document.getElementById('taskDateTime').value = new Date().toISOString().slice(0, 16);
+        }
+
+        function closeTaskModal() {
+            document.getElementById('taskModal').classList.remove('active');
+            document.getElementById('taskForm').reset();
+        }
+
+        function saveTask() {
+            const task = {
+                id: Date.now(),
+                title: document.getElementById('taskTitle').value,
+                description: document.getElementById('taskDescription').value,
+                category: document.getElementById('taskCategory').value,
+                priority: document.getElementById('taskPriority').value,
+                dateTime: document.getElementById('taskDateTime').value,
+                completed: false,
+                profile: appState.currentProfile,
+                createdAt: new Date().toISOString()
+            };
+
+            appState.tasks.push(task);
+            saveAppState();
+            renderTasks();
+            closeTaskModal();
+            
+            // Update performance
+            updatePerformance('precision', 1);
+        }
+
+        function renderTasks() {
+            const taskList = document.getElementById('taskList');
+            const filteredTasks = appState.tasks.filter(task => 
+                task.profile === appState.currentProfile && !task.completed
+            );
+
+            taskList.innerHTML = filteredTasks.map(task => `
+                <div class="task-item" onclick="toggleTask(${task.id})">
+                    <div class="task-checkbox ${task.completed ? 'checked' : ''}"></div>
+                    <div class="task-content">
+                        <div class="task-title">${task.title}</div>
+                        <div class="task-meta">
+                            <span class="task-priority priority-${task.priority}">${getPriorityLabel(task.priority)}</span>
+                            <span>${formatDateTime(task.dateTime)}</span>
+                            <span>${getCategoryLabel(task.category)}</span>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function toggleTask(taskId) {
+            const task = appState.tasks.find(t => t.id === taskId);
+            if (task) {
+                task.completed = !task.completed;
+                saveAppState();
+                renderTasks();
+                
+                if (task.completed) {
+                    updatePerformance('detail', 2);
+                    checkAchievements();
+                }
+            }
+        }
+
+        // Calendar
+        function renderCalendar() {
+            const grid = document.getElementById('calendarGrid');
+            const year = appState.currentMonth.getFullYear();
+            const month = appState.currentMonth.getMonth();
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const today = new Date();
+
+            // Update month header
+            document.getElementById('currentMonth').textContent = 
+                appState.currentMonth.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' });
+
+            // Generate calendar days
+            let html = '';
+            
+            // Empty cells before first day
+            for (let i = 0; i < firstDay; i++) {
+                html += '<div></div>';
+            }
+            
+            // Days of month
+            for (let day = 1; day <= daysInMonth; day++) {
+                const isToday = today.getDate() === day && 
+                               today.getMonth() === month && 
+                               today.getFullYear() === year;
+                html += `<div class="calendar-day ${isToday ? 'today' : ''}">${day}</div>`;
+            }
+            
+            grid.innerHTML = html;
+
+            // Render time blocks
+            renderTimeBlocks();
+        }
+
+        function renderTimeBlocks() {
+            const timeBlocks = document.getElementById('timeBlocks');
+            const todayTasks = appState.tasks.filter(task => {
+                const taskDate = new Date(task.dateTime);
+                const today = new Date();
+                return taskDate.toDateString() === today.toDateString() && 
+                       task.profile === appState.currentProfile;
+            });
+
+            timeBlocks.innerHTML = todayTasks.map(task => `
+                <div class="time-block" draggable="true" data-task-id="${task.id}">
+                    <div>
+                        <strong>${task.title}</strong>
+                        <div style="font-size: 14px; color: var(--text-secondary);">
+                            ${new Date(task.dateTime).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                    </div>
+                    <span class="task-priority priority-${task.priority}">${getPriorityLabel(task.priority)}</span>
+                </div>
+            `).join('');
+
+            // Add drag and drop functionality
+            setupDragAndDrop();
+        }
+
+        function previousMonth() {
+            appState.currentMonth = new Date(appState.currentMonth.getFullYear(), appState.currentMonth.getMonth() - 1);
+            renderCalendar();
+        }
+
+        function nextMonth() {
+            appState.currentMonth = new Date(appState.currentMonth.getFullYear(), appState.currentMonth.getMonth() + 1);
+            renderCalendar();
+        }
+
+        // Diary
+        function saveDiary() {
+            const entry = document.getElementById('diaryEntry').value;
+            if (entry.trim()) {
+                const diaryEntry = {
+                    id: Date.now(),
+                    content: entry,
+                    date: new Date().toISOString(),
+                    profile: appState.currentProfile
+                };
+                
+                appState.diaryEntries.push(diaryEntry);
+                saveAppState();
+                
+                // Clear textarea
+                document.getElementById('diaryEntry').value = '';
+                
+                // Update performance
+                updatePerformance('detail', 3);
+                
+                // Show success message
+                showNotification('Diario salvato con successo!', 'success');
+            }
+        }
+
+        // AI Assistant
+        function sendAiMessage() {
+            const input = document.getElementById('aiInput');
+            const message = input.value.trim();
+            
+            if (message) {
+                addChatMessage(message, 'user');
+                input.value = '';
+                
+                // Simulate AI response
+                setTimeout(() => {
+                    const response = generateAiResponse(message);
+                    addChatMessage(response, 'assistant');
+                }, 1000);
+            }
+        }
+
+        function handleAiInput(event) {
+            if (event.key === 'Enter') {
+                sendAiMessage();
+            }
+        }
+
+        function usePrompt(prompt) {
+            document.getElementById('aiInput').value = prompt;
+            sendAiMessage();
+        }
+
+        function addChatMessage(message, sender) {
+            const chat = document.getElementById('aiChat');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `ai-message ${sender}`;
+            messageDiv.textContent = message;
+            chat.appendChild(messageDiv);
+            chat.scrollTop = chat.scrollHeight;
+        }
+
+        function generateAiResponse(message) {
+            // Simple response generation based on keywords
+            const responses = {
+                'tempo': 'Analizzando i tuoi dati, noto che perdi più tempo nel pomeriggio tra le 14:00 e le 16:00. Ti suggerisco di pianificare task più impegnativi al mattino quando sei più produttivo.',
+                'routine': 'Per migliorare la tua routine mattutina: 1) Svegliati sempre alla stessa ora, 2) Dedica 10 minuti alla pianificazione della giornata, 3) Inizia con il task più importante.',
+                'pianificazione': 'Vedo che tendi a sottostimare il tempo necessario per completare i task. Prova ad aggiungere un buffer del 20% ad ogni stima temporale.',
+                'ordinato': 'Ecco 3 azioni per domani: 1) Completa tutti i task entro l\'orario previsto, 2) Scrivi nel diario appena finisci di lavorare, 3) Prepara la lista dei task per dopodomani prima di dormire.'
+            };
+
+            for (const [keyword, response] of Object.entries(responses)) {
+                if (message.toLowerCase().includes(keyword)) {
+                    return response;
+                }
+            }
+
+            return 'Interessante osservazione. Basandomi sui tuoi dati recenti, ti consiglio di concentrarti sul completamento dei task ad alta priorità prima di passare a quelli secondari. Vuoi che analizzi un aspetto specifico delle tue performance?';
+        }
+
+        // Performance
+        function updatePerformance(metric, points) {
+            if (appState.performance[metric] !== undefined) {
+                appState.performance[metric] = Math.min(100, appState.performance[metric] + points);
+                updatePerformanceCharts();
+                saveAppState();
+            }
+        }
+
+        function updatePerformanceCharts() {
+            // Update scores
+            document.querySelectorAll('.performance-score').forEach((el, index) => {
+                const metrics = ['precision', 'punctuality', 'detail'];
+                const value = appState.performance[metrics[index]];
+                el.textContent = value + '%';
+            });
+
+            // Update progress rings
+            document.querySelectorAll('.progress-ring-circle').forEach((circle, index) => {
+                const metrics = ['precision', 'punctuality', 'detail'];
+                const value = appState.performance[metrics[index]];
+                const offset = 377 - (377 * value / 100);
+                circle.style.strokeDashoffset = offset;
+            });
+        }
+
+        // Utility functions
+        function getPriorityLabel(priority) {
+            const labels = {
+                high: 'Alta',
+                medium: 'Media',
+                low: 'Bassa'
+            };
+            return labels[priority] || priority;
+        }
+
+        function getCategoryLabel(category) {
+            const labels = {
+                work: '💼 Lavoro',
+                personal: '👤 Personale',
+                family: '👨‍👩‍👧‍👦 Famiglia'
+            };
+            return labels[category] || category;
+        }
+
+        function formatDateTime(dateTime) {
+            const date = new Date(dateTime);
+            return date.toLocaleString('it-IT', {
+                day: '2-digit',
+                month: 'short',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        function setupDragAndDrop() {
+            const timeBlocks = document.querySelectorAll('.time-block');
+            
+            timeBlocks.forEach(block => {
+                block.addEventListener('dragstart', (e) => {
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/html', e.target.innerHTML);
+                    e.target.classList.add('dragging');
+                });
+
+                block.addEventListener('dragend', (e) => {
+                    e.target.classList.remove('dragging');
+                });
+
+                block.addEventListener('dragover', (e) => {
+                    if (e.preventDefault) {
+                        e.preventDefault();
+                    }
+                    e.dataTransfer.dropEffect = 'move';
+                    return false;
+                });
+
+                block.addEventListener('drop', (e) => {
+                    if (e.stopPropagation) {
+                        e.stopPropagation();
+                    }
+                    // Handle reordering logic here
+                    return false;
+                });
+            });
+        }
+
+        function checkTimeBasedEvents() {
+            const now = new Date();
+            const hour = now.getHours();
+
+            // Morning planning reminder
+            if (hour === 8 && now.getMinutes() === 0) {
+                showNotification('Buongiorno! È ora di pianificare la tua giornata.', 'info');
+            }
+
+            // Midday review
+            if (hour === 12 && now.getMinutes() === 0) {
+                showNotification('Pausa pranzo! Come sta andando la giornata?', 'info');
+            }
+
+            // Evening diary reminder
+            if (hour === 20 && now.getMinutes() === 0) {
+                showNotification('È ora di scrivere nel diario della giornata!', 'info');
+            }
+        }
+
+        function checkAchievements() {
+            // Check for new badges
+            const completedToday = appState.tasks.filter(task => {
+                const taskDate = new Date(task.dateTime);
+                const today = new Date();
+                return taskDate.toDateString() === today.toDateString() && task.completed;
+            }).length;
+
+            if (completedToday >= 10) {
+                unlockBadge(2);
+            }
+        }
+
+        function unlockBadge(badgeId) {
+            const badge = appState.badges.find(b => b.id === badgeId);
+            if (badge && !badge.unlocked) {
+                badge.unlocked = true;
+                saveAppState();
+                showNotification(`Badge sbloccato: ${badge.name} ${badge.icon}`, 'success');
+            }
+        }
+
+        function showNotification(message, type = 'info') {
+            // Create notification element
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 15px 25px;
+                background: ${type === 'success' ? 'var(--success)' : 'var(--primary-blue)'};
+                color: white;
+                border-radius: 10px;
+                z-index: 3000;
+                animation: slideIn 0.3s ease;
+            `;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+
+        function addPhoto() {
+            // Simulate photo upload
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.onchange = (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    showNotification('Foto aggiunta al diario!', 'success');
+                }
+            };
+            input.click();
+        }
+
+        function addAudio() {
+            // Simulate audio recording
+            showNotification('Funzione di registrazione audio in arrivo!', 'info');
+        }
+
+        // State management functions (using in-memory storage instead of localStorage)
+        function saveAppState() {
+            // In sandbox environment, we just keep state in memory
+            // In production, you would use localStorage:
+            // localStorage.setItem('precisionAppState', JSON.stringify(appState));
+            console.log('App state saved (in-memory)');
+        }
+
+        function loadAppState() {
+            // In sandbox environment, we use default state
+            // In production, you would load from localStorage:
+            // const saved = localStorage.getItem('precisionAppState');
+            // if (saved) {
+            //     appState = { ...appState, ...JSON.parse(saved) };
+            //     appState.currentMonth = new Date(appState.currentMonth);
+            // }
+            console.log('App state loaded (using defaults)');
+        }
+
+        // Check for time-based events every minute
+        setInterval(checkTimeBasedEvents, 60000);
+    </script>
+</body>
+</html>
