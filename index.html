@@ -4,6 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Precision - Your Personal Excellence System</title>
+    
+    <!-- PWA Support -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#007AFF">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Precision">
+    <link rel="apple-touch-icon" href="icon-192.png">
     <style>
         * {
             margin: 0;
@@ -847,13 +855,24 @@
         };
 
         // Initialize app
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', async function() {
+            // Initialize IndexedDB first
+            await initDB();
+            
+            // Then initialize app
             initializeApp();
+            
+            // Register Service Worker for offline functionality
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('sw.js')
+                    .then(registration => console.log('SW registered:', registration))
+                    .catch(error => console.log('SW registration failed:', error));
+            }
         });
 
-        function initializeApp() {
+        async function initializeApp() {
             // Load saved data
-            loadAppState();
+            await loadAppState();
             
             // Setup event listeners
             setupEventListeners();
@@ -1307,23 +1326,73 @@
             showNotification('Funzione di registrazione audio in arrivo!', 'info');
         }
 
-        // State management functions (using in-memory storage instead of localStorage)
-        function saveAppState() {
-            // In sandbox environment, we just keep state in memory
-            // In production, you would use localStorage:
-            // localStorage.setItem('precisionAppState', JSON.stringify(appState));
-            console.log('App state saved (in-memory)');
+        // State management with IndexedDB
+        let db;
+        
+        // Initialize IndexedDB
+        function initDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open('PrecisionDB', 1);
+                
+                request.onerror = () => reject(request.error);
+                request.onsuccess = () => {
+                    db = request.result;
+                    resolve(db);
+                };
+                
+                request.onupgradeneeded = (event) => {
+                    db = event.target.result;
+                    if (!db.objectStoreNames.contains('appState')) {
+                        db.createObjectStore('appState');
+                    }
+                };
+            });
         }
 
-        function loadAppState() {
-            // In sandbox environment, we use default state
-            // In production, you would load from localStorage:
-            // const saved = localStorage.getItem('precisionAppState');
-            // if (saved) {
-            //     appState = { ...appState, ...JSON.parse(saved) };
-            //     appState.currentMonth = new Date(appState.currentMonth);
-            // }
-            console.log('App state loaded (using defaults)');
+        // Save to IndexedDB
+        async function saveAppState() {
+            if (!db) await initDB();
+            
+            const transaction = db.transaction(['appState'], 'readwrite');
+            const store = transaction.objectStore('appState');
+            
+            // Convert Date objects to strings for storage
+            const stateToSave = {
+                ...appState,
+                currentMonth: appState.currentMonth.toISOString()
+            };
+            
+            store.put(stateToSave, 'state');
+            console.log('App state saved to IndexedDB');
+        }
+
+        // Load from IndexedDB
+        async function loadAppState() {
+            try {
+                if (!db) await initDB();
+                
+                const transaction = db.transaction(['appState'], 'readonly');
+                const store = transaction.objectStore('appState');
+                const request = store.get('state');
+                
+                request.onsuccess = () => {
+                    if (request.result) {
+                        appState = {
+                            ...appState,
+                            ...request.result,
+                            currentMonth: new Date(request.result.currentMonth)
+                        };
+                        console.log('App state loaded from IndexedDB');
+                        
+                        // Re-render everything with loaded data
+                        renderTasks();
+                        renderCalendar();
+                        updatePerformanceCharts();
+                    }
+                };
+            } catch (error) {
+                console.error('Error loading from IndexedDB:', error);
+            }
         }
 
         // Check for time-based events every minute
