@@ -130,9 +130,52 @@ dover ripetere gli scan:
    solo dopo aver controllato l'anteprima.
 
 Non ancora in questa build (fasi successive, da confermare una alla volta):
-frontend pubblico "Finanza Agevolata Match" (Fase 3), le restanti ~40 Camere
-di Commercio oltre al batch attuale (Fase 4), pipeline kanban (Fase 5
-opzionale).
+le restanti ~40 Camere di Commercio oltre al batch attuale (Fase 4),
+pipeline kanban (Fase 5 opzionale). La Fase 3 (frontend pubblico) è
+descritta nella sezione sotto.
+
+### Frontend pubblico — Finanza Agevolata Match (Fase 3)
+
+Pagina pubblica, **nessun login** (esclusa volutamente dal matcher di
+`middleware.ts`): `/finanza-agevolata-match`. Un'azienda inserisce la
+propria Partita IVA + email, il tool:
+
+1. Risolve la Partita IVA in anagrafica azienda (ragione sociale, ATECO,
+   regione) tramite **openapi.it** — `src/lib/integrations/openapi-business.ts`.
+2. Salva/aggiorna quell'anagrafica come `Prospect` (upsert per `piva`,
+   `fonteImport: "Finanza Agevolata Match (pubblico)"`) — il lead entra
+   così anche nel CRM interno, il team lo vede tra i Prospect come
+   qualunque altro importato da CSV.
+3. Ricalcola i match con lo **stesso motore a regole** della dashboard
+   (`ricalcolaMatchPerProspect`, zero AI/LLM anche qui) e li mostra subito
+   in pagina.
+4. Li invia anche via email (Resend) — fail-open: se l'invio fallisce o
+   `RESEND_API_KEY` non è configurata, l'utente vede comunque i risultati
+   a video, solo senza l'email.
+
+**openapi.it — mappatura da verificare contro una risposta reale.** Non ho
+accesso alla rete pubblica da questo ambiente (stesso limite dei parser di
+monitoraggio, vedi sotto), quindi la forma esatta della risposta JSON di
+`business-information` non ha potuto essere testata — `mappaRisposta` in
+`openapi-business.ts` prova più nomi di campo plausibili per ogni valore
+(mai inventa un dato: se non trova nessun percorso valido per un campo
+resta `null`), ma se in produzione la ricerca torna con ragione sociale/
+ATECO/regione vuoti nonostante una risposta 200, il problema è quasi
+certamente lì — un esempio reale di risposta (anche con dati anonimizzati)
+basta a correggere la mappatura in pochi minuti, stesso procedimento già
+usato per calibrare i parser delle fonti con HTML reale.
+
+Da notare: un lookup anagrafico da Partita IVA in genere NON include
+fatturato/numero dipendenti (serve un prodotto "bilanci" separato, non
+detto sia nel piano attivato) — il motore di matching tratta comunque
+questi campi mancanti come "da verificare", mai come esclusione (vedi
+`valutaMatch` in `src/lib/matching/engine.ts`).
+
+Variabili d'ambiente da impostare (vedi `.env.example`): `OPENAPI_IT_API_KEY`
+(obbligatoria — senza, l'endpoint risponde con un errore esplicito, non
+inventa dati), `RESEND_API_KEY` + `EMAIL_FROM` (email di riepilogo),
+`MOLO_PHONE_NUMBER` + `MOLO_BOOKING_URL` (CTA di contatto mostrata sotto i
+risultati, entrambe opzionali).
 
 ### Nota importante sui parser di monitoraggio — serve un giro di calibrazione reale
 
