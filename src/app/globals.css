@@ -64,14 +64,24 @@
   border-color: hsl(var(--border-subtle));
 }
 
-html,
-body {
-  /* Mai scroll orizzontale della pagina: qualunque componente interattivo
-     (timeline touch/pinch, tabelle) gestisce il proprio scroll interno.
-     `clip` (non `hidden`) apposta: non trasforma body in un proprio
-     scroll container, quindi non rompe `position: sticky` su iOS. */
-  overflow-x: clip;
+html {
+  /* Overflow-x SOLO su html, non su body: impostarlo su entrambi crea due
+     scroll container annidati e rompe `position: sticky` (verificato: con
+     hidden su entrambi l'header smette di restare in cima allo scroll).
+     `hidden` (non `clip`, supportato solo da Safari 16+) per compatibilità
+     universale. */
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100%;
   overscroll-behavior-x: none;
+  /* Evita che Safari ingrandisca automaticamente il testo in alcuni
+     contesti, causa comune di overflow imprevedibili su iOS. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  width: 100%;
   max-width: 100%;
 }
 
