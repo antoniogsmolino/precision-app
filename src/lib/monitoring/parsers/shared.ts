@@ -41,9 +41,21 @@ export function parseDataItaliana(testo: string): Date | null {
   return null;
 }
 
-/** Estrae il primo importo in euro trovato nel testo (es. "€ 50.000", "50.000 euro"). */
+const NUMERO_EURO = "[\\d]{1,3}(?:[.\\s]\\d{3})*(?:,\\d+)?";
+
+/**
+ * Estrae il primo importo in euro trovato nel testo (es. "€ 50.000",
+ * "50.000 euro"). Il simbolo di valuta è SEMPRE richiesto (prima o dopo il
+ * numero, mai assente): la versione precedente aveva entrambi i lati
+ * opzionali, quindi QUALSIASI numero nel testo veniva letto come un
+ * importo — es. "31 Dicembre 2026" restituiva "31 €", "4 settembre 2026"
+ * restituiva "4 €". Trovato da titoli reali con importi assurdi in
+ * produzione.
+ */
 export function parseImportoEuro(testo: string): number | null {
-  const match = testo.match(/(?:€\s?|euro\s?)?([\d]{1,3}(?:[.\s]\d{3})*(?:,\d+)?)\s?(?:€|euro)?/i);
+  const conPrefisso = testo.match(new RegExp(`€\\s?(${NUMERO_EURO})`, "i"));
+  const conSuffisso = testo.match(new RegExp(`(${NUMERO_EURO})\\s?(?:€|euro)\\b`, "i"));
+  const match = conPrefisso ?? conSuffisso;
   if (!match) return null;
   const numero = match[1].replace(/[.\s]/g, "").replace(",", ".");
   const val = Number(numero);
@@ -162,21 +174,86 @@ const PAROLE_ESCLUSE = [
   "orari di apertura",
   "meteo",
   "webcam",
+  // Contenuti istituzionali reali ma FUORI TEMA rispetto alla finanza
+  // agevolata alle imprese (selezione di personale, comitati, ricerca
+  // individuale...): usano lo stesso vocabolario di un bando ("avviso",
+  // "domande", "graduatoria"...) ma non sono misure a sostegno di imprese.
+  "comitato etico",
+  "sperimentazione clinica",
+  "comitato scientifico",
+  "commissione giudicatrice",
+  "concorso pubblico",
+  "selezione del personale",
+  "procedura selettiva",
+  "mobilità del personale",
+  "borsa di studio",
+  "assegno di ricerca",
+  "posizione aperta",
+  "offerta di lavoro",
 ];
+
+/**
+ * Frasi di navigazione ("leggi tutto", "vedi tutti"...) o titoli di pagine
+ * indice/categoria ("bandi e avvisi pubblici"...) — non il nome di UNA
+ * misura specifica, ma un link a una lista o un invito generico a cliccare.
+ * Confronto per uguaglianza esatta (dopo normalizzazione), non "contains":
+ * un veto assoluto, non un punteggio negativo che il resto del testo
+ * potrebbe compensare — trovate in produzione passare il filtro standard
+ * proprio perché, prese da sole, contengono zero segnali negativi e a
+ * volte pescano un bonus dall'URL della pagina che le ospita (es. un
+ * "leggi l'articolo" dentro una sezione "/bandi/" del sito).
+ */
+const FRASI_GENERICHE_ESCLUSE = new Set([
+  "vedi tutti",
+  "vedi tutto",
+  "leggi tutto",
+  "leggi larticolo",
+  "leggi di piu",
+  "scopri di piu",
+  "maggiori informazioni",
+  "per saperne di piu",
+  "continua a leggere",
+  "clicca qui",
+  "vai alla pagina",
+  "vai al sito",
+  "approfondisci",
+  "tutte le novita",
+  "tutte le notizie",
+  "bandi e avvisi pubblici",
+  "bandi e avvisi",
+  "avvisi pubblici",
+  "elenco bandi",
+  "sezione bandi",
+  "tutti i bandi",
+  "bandi in corso",
+  "bandi aperti",
+  "bandi scaduti",
+  "bandi",
+  "avvisi",
+]);
 
 const ESTENSIONI_FILE_DIRETTO = /\.(pdf|jpg|jpeg|png|zip|rar|doc|docx|xls|xlsx)(\?.*)?$/i;
 
-/** Segnale positivo forte: il link punta a un percorso tipico di sezione bandi/avvisi. */
+/** Segnale positivo, ma solo corroborante (mai sufficiente da solo — vedi sotto): il link punta a un percorso tipico di sezione bandi/avvisi. */
 const PERCORSO_BANDO = /\/(bandi|bando|avvisi|avviso|contributi|incentivi|agevolazioni|finanziamenti)\//i;
 
 export function punteggioVoceBando(titolo: string, href: string): number {
   const t = titolo.toLowerCase();
+
+  const normalizzato = t.replace(/[^\p{L}\p{N}\s]/gu, " ").replace(/\s+/g, " ").trim();
+  if (FRASI_GENERICHE_ESCLUSE.has(normalizzato)) return -50;
+
   let punti = 0;
 
   if (t.length < 8 || t.length > 220) punti -= 6;
   for (const parola of PAROLE_CHIAVE_BANDO) if (t.includes(parola)) punti += 3;
   for (const parola of PAROLE_ESCLUSE) if (t.includes(parola)) punti -= 12;
-  if (PERCORSO_BANDO.test(href)) punti += 4; // l'URL stesso vive in una sezione bandi/avvisi
+  // Corroborante ma non sufficiente da solo: 2 punti restano sotto soglia
+  // (SOGLIA_VOCE_BANDO = 3) finché non si somma a un'altra parola chiave, a
+  // una data o a un importo — un link generico che vive per caso sotto un
+  // URL "/bandi/qualcosa" (es. un "leggi l'articolo" dentro quella sezione)
+  // non deve passare per il solo fatto di trovarsi in quella cartella.
+  if (PERCORSO_BANDO.test(href)) punti += 2;
   if (/\d{1,2}[/\-.]\d{1,2}[/\-.]\d{4}/.test(t)) punti += 2; // data esplicita nel testo del link
   if (/€|\beuro\b/.test(t)) punti += 1;
   if (ESTENSIONI_FILE_DIRETTO.test(href)) punti -= 8; // link diretto a un file, non a una pagina di dettaglio
