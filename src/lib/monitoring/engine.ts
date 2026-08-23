@@ -102,22 +102,44 @@ export async function scanFonte(fonteId: string, opts: { forza?: boolean } = {})
     const { misure, contenutoGrezzo } = await parser(html, fonte.url);
     const hash = hashContenuto(contenutoGrezzo);
 
-    // Diagnostica per il caso "fetch riuscito ma zero misure trovate":
+    // Diagnostica per il caso "fetch riuscito ma (quasi) zero misure trovate":
     // senza questo, un fetch che porta a casa una pagina vuota/quasi-vuota
     // (es. contenuto caricato via JavaScript lato client, che il motore —
     // che legge solo l'HTML grezzo — non vede) è indistinguibile da un
     // fetch che porta a casa la pagina vera ma con selettori/euristica che
-    // non riconoscono la sua struttura: stessa "SUCCESSO, 0 misure" in
-    // entrambi i casi. Contare i tag <a> nell'HTML grezzo permette di
-    // capire quale dei due casi è, dal solo ScanLog, senza dover ispezionare
-    // la pagina a mano ogni volta.
+    // non riconoscono la sua struttura, o da una pagina che elenca solo
+    // 1-2 misure "in evidenza" in HTML statico e nasconde il resto
+    // dell'elenco dietro un caricamento via JavaScript (paginazione/filtri
+    // lato client) — stessa "SUCCESSO, N misure" bassissimo in tutti questi
+    // casi molto diversi tra loro. La soglia è <= 2, non solo 0: un sito
+    // reale con decine di misure che ne restituisce 1 è comunque un
+    // fallimento da diagnosticare, non un successo. Contare i tag <a> e le
+    // occorrenze delle parole chiave di dominio nell'HTML grezzo permette
+    // di distinguere questi casi dal solo ScanLog, senza dover ispezionare
+    // la pagina a mano ogni volta:
+    //  - pochissimi link totali -> pagina vuota/caricata via JS lato client;
+    //  - tanti link ma pochissime parole chiave di dominio nel testo grezzo
+    //    -> il contenuto reale (elenco misure) probabilmente non è nell'HTML
+    //    servito al fetch, ma caricato dopo via JS (stesso caso di sopra,
+    //    ma su una pagina che non è vuota per altri motivi: menu, footer...);
+    //  - tanti link E tante parole chiave nel testo grezzo, ma poche misure
+    //    estratte -> il contenuto reale C'È nell'HTML statico, il problema
+    //    è nei selettori/euristica che non lo riconoscono: qui serve l'HTML
+    //    reale della pagina (chiederlo al team) per calibrare i selettori,
+    //    non altro tuning alla cieca.
     let diagnosticaZeroMisure: string | undefined;
-    if (misure.length === 0) {
+    if (misure.length <= 2) {
       const numeroLinkTotali = (html.match(/<a[\s>]/gi) ?? []).length;
-      diagnosticaZeroMisure =
-        numeroLinkTotali < 5
-          ? `0 misure estratte — HTML di ${html.length} caratteri con solo ${numeroLinkTotali} link totali: probabile pagina vuota/caricata via JavaScript, non un problema di selettori.`
-          : `0 misure estratte — HTML di ${html.length} caratteri con ${numeroLinkTotali} link totali: la pagina ha contenuto ma nessun link supera il filtro di rilevanza, probabile problema di selettori/struttura da calibrare.`;
+      const PAROLE_CHIAVE_DIAGNOSTICA = /\b(bando|bandi|avviso|avvisi|voucher|contributo|contributi|incentivo|incentivi|finanziamento|finanziamenti|agevolazione|agevolazioni)\b/gi;
+      const occorrenzeParoleChiave = (html.match(PAROLE_CHIAVE_DIAGNOSTICA) ?? []).length;
+
+      if (numeroLinkTotali < 5) {
+        diagnosticaZeroMisure = `${misure.length} misure estratte — HTML di ${html.length} caratteri con solo ${numeroLinkTotali} link totali: probabile pagina vuota/caricata via JavaScript, non un problema di selettori.`;
+      } else if (occorrenzeParoleChiave < 5) {
+        diagnosticaZeroMisure = `${misure.length} misure estratte — HTML di ${html.length} caratteri, ${numeroLinkTotali} link totali ma solo ${occorrenzeParoleChiave} occorrenze di parole chiave di dominio (bando/avviso/incentivo/contributo/...): probabile che l'elenco vero delle misure sia caricato via JavaScript lato client (paginazione/filtri) e non presente nell'HTML servito al fetch, non un problema di selettori.`;
+      } else {
+        diagnosticaZeroMisure = `${misure.length} misure estratte — HTML di ${html.length} caratteri con ${numeroLinkTotali} link totali e ${occorrenzeParoleChiave} occorrenze di parole chiave di dominio: la pagina ha contenuto pertinente in HTML statico ma pochissimo supera il filtro di rilevanza/i selettori, probabile problema di selettori/struttura da calibrare sull'HTML reale della pagina.`;
+      }
     }
 
     let nuove = 0;
