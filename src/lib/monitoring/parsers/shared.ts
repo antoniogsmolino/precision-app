@@ -237,11 +237,26 @@ const ESTENSIONI_FILE_DIRETTO = /\.(pdf|jpg|jpeg|png|zip|rar|doc|docx|xls|xlsx)(
 /** Segnale positivo, ma solo corroborante (mai sufficiente da solo — vedi sotto): il link punta a un percorso tipico di sezione bandi/avvisi. */
 const PERCORSO_BANDO = /\/(bandi|bando|avvisi|avviso|contributi|incentivi|agevolazioni|finanziamenti)\//i;
 
+/**
+ * Normalizza un titolo per il confronto con FRASI_GENERICHE_ESCLUSE:
+ * minuscolo, apostrofi/punteggiatura rimossi (non sostituiti da uno
+ * spazio — "l'articolo" deve diventare "larticolo", non "l articolo",
+ * altrimenti non coincide più con le frasi elencate), spazi ripetuti
+ * collassati.
+ */
+function normalizzaTitolo(titolo: string): string {
+  return titolo
+    .toLowerCase()
+    .replace(/['’]/g, "")
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export function punteggioVoceBando(titolo: string, href: string): number {
   const t = titolo.toLowerCase();
 
-  const normalizzato = t.replace(/[^\p{L}\p{N}\s]/gu, " ").replace(/\s+/g, " ").trim();
-  if (FRASI_GENERICHE_ESCLUSE.has(normalizzato)) return -50;
+  if (FRASI_GENERICHE_ESCLUSE.has(normalizzaTitolo(titolo))) return -50;
 
   let punti = 0;
 
@@ -276,6 +291,32 @@ export function punteggioVoceBando(titolo: string, href: string): number {
  */
 export const SOGLIA_VOCE_BANDO = 3;
 
+const SELETTORI_TITOLO_ALTERNATIVO = "h1, h2, h3, h4, h5, strong, b, .titolo, .title";
+
+/**
+ * Il testo del link non è sempre il vero titolo della misura: molti siti
+ * scrivono il titolo in un'intestazione dentro la card/riga di lista, e
+ * lasciano al link solo una CTA generica ("Leggi l'articolo", "Scopri di
+ * più") — trovato su fonti reali, dove il titolo corretto ("Bando Voucher
+ * Doppia Transizione 2026 - Webinar di presentazione il 6 luglio 2026")
+ * era scritto correttamente nel contenitore ma scartato perché il link
+ * portava solo "Leggi l'articolo". Quando il testo del link è una di
+ * queste CTA (o è troppo corto per essere un titolo) si cerca un'
+ * intestazione più specifica nello stesso contenitore e, se c'è, si usa
+ * quella al posto del testo del link — invece di scartare la voce o,
+ * peggio, tenere la CTA come se fosse il titolo.
+ */
+function estraiTitoloEffettivo(
+  $contenitore: cheerio.Cheerio<any>,
+  titoloLink: string,
+): string {
+  const eGenerico = FRASI_GENERICHE_ESCLUSE.has(normalizzaTitolo(titoloLink)) || titoloLink.length < 12;
+  if (!eGenerico || !$contenitore.length) return titoloLink;
+
+  const titoloAlternativo = testoPulito($contenitore.find(SELETTORI_TITOLO_ALTERNATIVO).first());
+  return titoloAlternativo && titoloAlternativo.length > titoloLink.length ? titoloAlternativo : titoloLink;
+}
+
 /**
  * Scansiona TUTTI i link della pagina e tiene solo quelli con punteggio
  * positivo — nessuna dipendenza da selettori CSS specifici del sito.
@@ -289,15 +330,20 @@ function estraiVociListaEuristica($: cheerio.CheerioAPI, baseUrl: string, massim
     const url = risolviUrl(baseUrl, href);
     if (!url) return;
 
-    const titolo = testoPulito($link);
-    if (!titolo) return;
+    const titoloLink = testoPulito($link);
+    if (!titoloLink) return;
+
+    // Contenitore più ampio del link (card/riga di lista): serve sia per il
+    // contesto (testoCompleto, da cui si leggono data/importo) sia per
+    // recuperare il vero titolo quando il link è solo una CTA generica.
+    const $contenitore = $link.closest("li, article, tr, .card, .item, .news-item, .box");
+    const $contenitoreEffettivo = $contenitore.length ? $contenitore : $link.parent();
+    const titolo = estraiTitoloEffettivo($contenitoreEffettivo, titoloLink);
 
     const punti = punteggioVoceBando(titolo, href);
     if (punti < SOGLIA_VOCE_BANDO) return;
 
-    // Un po' di contesto in più dal contenitore del link (es. la card che lo racchiude).
-    const $contenitore = $link.parent();
-    const testoCompleto = testoPulito($contenitore.length ? $contenitore : $link);
+    const testoCompleto = testoPulito($contenitoreEffettivo.length ? $contenitoreEffettivo : $link);
 
     candidati.push({ linkDettaglio: url, titolo, testoCompleto, punti });
   });
@@ -354,7 +400,18 @@ export function estraiVociListaGenerico(
       const $link = $el.is("a") ? $el : $el.find("a[href]").first();
       const href = $link.attr("href") ?? "";
       const url = risolviUrl(baseUrl, href);
-      const titolo = testoPulito($link.length ? $link : $el);
+      const titoloLink = testoPulito($link.length ? $link : $el);
+      // Se il selettore punta direttamente al link (es. "a[href*='/bandi/']"),
+      // $el COINCIDE col link: cercare un'intestazione dentro $el cercherebbe
+      // dentro l'anchor stesso, che non ha figli di testo — serve risalire al
+      // contenitore vero (card/riga di lista) come nel percorso euristico.
+      const $contenitoreTitolo = $el.is("a")
+        ? (() => {
+            const $c = $el.closest("li, article, tr, .card, .item, .news-item, .box");
+            return $c.length ? $c : $el.parent();
+          })()
+        : $el;
+      const titolo = estraiTitoloEffettivo($contenitoreTitolo, titoloLink);
       if (url && titolo && titolo.length > 4 && punteggioVoceBando(titolo, href) >= SOGLIA_VOCE_BANDO) {
         voci.push({ linkDettaglio: url, titolo, testoCompleto: testoPulito($el) });
       }
