@@ -121,7 +121,6 @@ const PAROLE_CHIAVE_BANDO = [
   "fondo perduto",
   "manifestazione di interesse",
   "call for",
-  "graduatoria",
   "domande",
   "sportello",
 ];

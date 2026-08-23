@@ -88,6 +88,7 @@ export function MisuraForm({
   const [ricercaCumulabili, setRicercaCumulabili] = useState("");
   const [errori, setErrori] = useState<string[]>([]);
   const [salvataggio, setSalvataggio] = useState(false);
+  const [eliminazione, setEliminazione] = useState<"inattiva" | "conferma" | "in-corso">("inattiva");
 
   useEffect(() => {
     fetch("/api/misure")
@@ -161,6 +162,19 @@ export function MisuraForm({
 
     const salvata = await res.json();
     router.push(`/misure/${salvata.id}`);
+    router.refresh();
+  }
+
+  async function handleElimina() {
+    if (!misuraId) return;
+    setEliminazione("in-corso");
+    const res = await fetch(`/api/misure/${misuraId}`, { method: "DELETE" });
+    if (!res.ok) {
+      setEliminazione("conferma");
+      setErrori(["Impossibile eliminare la misura. Riprova."]);
+      return;
+    }
+    router.push("/dashboard");
     router.refresh();
   }
 
@@ -414,13 +428,40 @@ export function MisuraForm({
         </CardBody>
       </Card>
 
-      <div className="flex justify-end gap-2 pb-8">
-        <Button type="button" variant="secondary" onClick={() => router.back()}>
-          Annulla
-        </Button>
-        <Button type="submit" disabled={salvataggio}>
-          {salvataggio ? "Salvataggio…" : misuraId ? "Salva modifiche" : "Crea misura"}
-        </Button>
+      <div className="flex flex-wrap items-center justify-between gap-2 pb-8">
+        {misuraId && (
+          <div>
+            {eliminazione === "inattiva" ? (
+              <Button type="button" variant="ghost" className="text-brand-600" onClick={() => setEliminazione("conferma")}>
+                Elimina misura
+              </Button>
+            ) : (
+              <div className="flex items-center gap-2 rounded-lg border border-brand-200 bg-brand-50 px-3 py-1.5">
+                <span className="text-[13px] text-brand-700">Eliminare definitivamente questa misura?</span>
+                <Button
+                  type="button"
+                  variant="danger"
+                  size="sm"
+                  disabled={eliminazione === "in-corso"}
+                  onClick={handleElimina}
+                >
+                  {eliminazione === "in-corso" ? "Elimino…" : "Sì, elimina"}
+                </Button>
+                <Button type="button" variant="ghost" size="sm" onClick={() => setEliminazione("inattiva")}>
+                  Annulla
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+        <div className="ml-auto flex gap-2">
+          <Button type="button" variant="secondary" onClick={() => router.back()}>
+            Annulla
+          </Button>
+          <Button type="submit" disabled={salvataggio}>
+            {salvataggio ? "Salvataggio…" : misuraId ? "Salva modifiche" : "Crea misura"}
+          </Button>
+        </div>
       </div>
     </form>
   );

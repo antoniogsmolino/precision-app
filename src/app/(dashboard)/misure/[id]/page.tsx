@@ -125,7 +125,7 @@ export default function MisuraDettaglioPage() {
           <p className="text-sm font-medium text-ink/40">{misura.ente}</p>
           <h1 className="mt-1 text-2xl font-semibold text-ink">{misura.titolo}</h1>
           <div className="mt-3 flex flex-wrap items-center gap-2">
-            <StatoBadge stato={stato} />
+            <StatoBadge stato={stato} scadenzaStimata={misura.scadenzaStimata} />
             <Badge className="border-ink/10 bg-ink/[0.04] text-ink/70">{CATEGORIA_LABEL[misura.categoria]}</Badge>
             <Badge className="border-ink/10 bg-ink/[0.04] text-ink/70">
               {TIPO_AGEVOLAZIONE_LABEL[misura.tipoAgevolazione]}

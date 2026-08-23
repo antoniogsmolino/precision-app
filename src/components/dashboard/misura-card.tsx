@@ -45,7 +45,7 @@ export function MisuraCard({ misura }: { misura: MisuraCardData }) {
                 {misura.titolo}
               </h3>
             </div>
-            <StatoBadge stato={stato} className="shrink-0" />
+            <StatoBadge stato={stato} scadenzaStimata={misura.scadenzaStimata} className="shrink-0" />
           </div>
 
           <p className="mt-2.5 line-clamp-2 text-[13px] leading-relaxed text-ink/50">
@@ -62,14 +62,6 @@ export function MisuraCard({ misura }: { misura: MisuraCardData }) {
             {misura.rilevataAutomaticamente && (
               <Badge className="border-brand-100 bg-brand-50 text-brand-600" title="Rilevata dal monitoraggio automatico">
                 Auto
-              </Badge>
-            )}
-            {misura.scadenzaStimata && (
-              <Badge
-                className="border-urgency-500/25 bg-urgency-50 text-urgency-700"
-                title="Nessuna scadenza trovata sulla pagina di origine: data segnaposto, non reale"
-              >
-                Data da verificare
               </Badge>
             )}
           </div>
