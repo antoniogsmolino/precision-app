@@ -18,7 +18,17 @@ import type { EstrazioneVoceLista } from "./parsers/shared";
  */
 const client = process.env.ANTHROPIC_API_KEY ? new Anthropic() : null;
 
-const DIMENSIONE_LOTTO = 40;
+// Claude Haiku 4.5: il modello Claude più economico attualmente
+// disponibile ($1/$5 per milione di token in/out, contro $5/$25 di Opus
+// 5 — un compito di classificazione binaria come questo non richiede la
+// capacità di un modello di punta). Niente `thinking`/`output_config.effort`:
+// non sono supportati su Haiku 4.5 per una richiesta di questo tipo.
+const MODELLO = "claude-haiku-4-5";
+
+// Lotto ampio (fino al massimo di candidati che l'estrazione euristica
+// restituisce per fonte) per ammortizzare il costo fisso delle istruzioni
+// del prompt su più voci possibili in una sola chiamata.
+const DIMENSIONE_LOTTO = 80;
 const LUNGHEZZA_CONTESTO = 300;
 
 function costruisciPrompt(candidati: EstrazioneVoceLista[]): string {
@@ -43,10 +53,8 @@ async function classificaLotto(candidati: EstrazioneVoceLista[]): Promise<boolea
 
   try {
     const response = await client.messages.create({
-      model: "claude-opus-5",
+      model: MODELLO,
       max_tokens: 4096,
-      thinking: { type: "adaptive" },
-      output_config: { effort: "low" },
       messages: [{ role: "user", content: costruisciPrompt(candidati) }],
     });
 

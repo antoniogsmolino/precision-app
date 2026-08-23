@@ -176,7 +176,11 @@ puramente a regole su 46 siti eterogenei nuovi casi possono sempre
 ricomparire. Per questo `src/lib/monitoring/classificatore.ts` aggiunge
 un secondo filtro: ogni voce già passata dal filtro a regole viene
 sottoposta a un giudizio di Claude (un lotto per fonte scansionata, non
-una chiamata per voce) prima di essere scritta come Misura.
+una chiamata per voce) prima di essere scritta come Misura. Modello
+usato: **Claude Haiku 4.5**, il più economico attualmente disponibile
+($1/$5 per milione di token in/out) — un compito di classificazione
+binaria come questo non richiede un modello di punta. Costo indicativo:
+qualche centesimo per uno scan completo delle 46 fonti.
 
 **Da configurare**: serve la variabile d'ambiente `ANTHROPIC_API_KEY`
 (Vercel → Settings → Environment Variables) — senza quella il filtro è
