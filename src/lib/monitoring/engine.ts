@@ -190,17 +190,27 @@ async function registraLog(
 /**
  * Scansiona tutte le fonti attive che risultano dovute, in sequenza e con
  * una piccola pausa tra una fonte e l'altra: non c'è motivo di bombardare
- * in parallelo i siti di enti pubblici solo perché tecnicamente potremmo.
+ * in parallelo i siti di enti pubblici solo perché tecnicamente potremmo
+ * (ogni fonte è comunque un dominio diverso — la pausa qui è educazione
+ * verso l'insieme dei siti pubblici, il vero limite di frequenza per
+ * singolo sito resta `frequenzaOreScan` su ciascuna Fonte).
+ *
+ * Con decine di fonti attive uno scan completo può superare il limite di
+ * durata di una singola esecuzione serverless (es. Vercel Hobby): non è un
+ * problema — ogni fonte salva il suo risultato subito dopo lo scan (non a
+ * fine batch), quindi un'esecuzione interrotta a metà lascia comunque
+ * salvato tutto il lavoro fatto fino a quel punto, e le fonti rimaste
+ * "dovute" vengono riprese al giro di cron successivo.
  */
-export async function scanFontiDovute(): Promise<EsitoScanFonte[]> {
+export async function scanFontiDovute(opts: { forza?: boolean } = {}): Promise<EsitoScanFonte[]> {
   const fonti = await prisma.fonte.findMany({ where: { attiva: true } });
   const risultati: EsitoScanFonte[] = [];
 
   for (const fonte of fonti) {
-    const risultato = await scanFonte(fonte.id);
+    const risultato = await scanFonte(fonte.id, opts);
     risultati.push(risultato);
     if (!risultato.saltata) {
-      await new Promise((r) => setTimeout(r, 2_000));
+      await new Promise((r) => setTimeout(r, 400));
     }
   }
 

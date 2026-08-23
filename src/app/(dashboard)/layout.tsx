@@ -1,4 +1,5 @@
 import { getServerSession } from "next-auth";
+import Image from "next/image";
 import { authOptions } from "@/lib/auth/options";
 import { SidebarNav } from "@/components/dashboard/sidebar-nav";
 import { SignOutButton } from "@/components/dashboard/sign-out-button";
@@ -13,14 +14,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
       <div className="flex">
         <aside className="glass-surface-solid sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-ink/[0.06] md:flex">
-          <div className="flex items-center gap-2.5 px-5 py-5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-brand-600 text-sm font-bold text-white shadow-sm shadow-brand-600/30">
-              M
-            </div>
-            <div className="leading-tight">
-              <p className="text-sm font-semibold text-ink">Radar Finanza</p>
-              <p className="text-[11px] text-ink/40">MOLO 4.0</p>
-            </div>
+          <div className="px-5 py-5">
+            <Image src="/logo-full.png" alt="Sonar 4.0" width={1600} height={380} className="h-7 w-auto" priority />
+            <p className="mt-1.5 text-[11px] text-ink/40">Radar Finanza Agevolata · MOLO</p>
           </div>
 
           <SidebarNav />

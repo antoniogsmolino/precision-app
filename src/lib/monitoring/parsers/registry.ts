@@ -4,22 +4,24 @@ import { parserInvitalia } from "./invitalia";
 import { parserUnioncamerePid } from "./unioncamere-pid";
 import { parserSimest } from "./simest";
 import { parserCciaaSudEstSicilia } from "./cciaa-sud-est-sicilia";
-import { parserRegioneSicilia } from "./regionale/sicilia";
-import { parserRegioneLombardia } from "./regionale/lombardia";
-import { parserRegioneLazio } from "./regionale/lazio";
-import { parserRegioneCampania } from "./regionale/campania";
-import { parserRegionePuglia } from "./regionale/puglia";
+import { PARSER_REGIONALI } from "./regionale/registro";
+import { PARSER_CAMERALI } from "./camerale/registro";
 
 /**
- * Registro centrale dei parser di fonte. Per aggiungere una nuova fonte:
+ * Registro centrale dei parser di fonte.
  *
- *   1. Scrivi src/lib/monitoring/parsers/<nome-fonte>.ts esportando un
- *      ParserFonte (vedi ../types.ts per il contratto).
- *   2. Aggiungi la entry qui sotto con una chiave stabile.
- *   3. Crea la riga Fonte a DB con `parserKey` uguale a quella chiave
- *      (via seed, o dal form fonti in dashboard).
+ * Per una fonte davvero "a sé" (struttura HTML particolare, priorità di
+ * business dichiarata nel brief): scrivi un file dedicato in
+ * src/lib/monitoring/parsers/<nome-fonte>.ts esportando un ParserFonte
+ * (vedi ../types.ts) e aggiungilo qui sotto con una chiave stabile.
  *
- * Nessun'altra parte del motore di monitoraggio va toccata.
+ * Per una fonte regionale o camerale "standard" (la stragrande
+ * maggioranza, viste le decine di enti coinvolti): aggiungi una riga a
+ * ./regionale/config.ts o ./camerale/config.ts — il parser viene generato
+ * automaticamente dalla factory e registrato qui senza scrivere codice.
+ *
+ * In entrambi i casi, crea poi la riga Fonte a DB con `parserKey` uguale
+ * alla chiave di registro (via seed, o dal form fonti in dashboard).
  */
 export const REGISTRO_PARSER: Record<string, ParserFonte> = {
   "incentivi-gov-it": parserIncentiviGovIt,
@@ -27,11 +29,8 @@ export const REGISTRO_PARSER: Record<string, ParserFonte> = {
   "unioncamere-pid": parserUnioncamerePid,
   simest: parserSimest,
   "cciaa-sud-est-sicilia": parserCciaaSudEstSicilia,
-  "regione-sicilia": parserRegioneSicilia,
-  "regione-lombardia": parserRegioneLombardia,
-  "regione-lazio": parserRegioneLazio,
-  "regione-campania": parserRegioneCampania,
-  "regione-puglia": parserRegionePuglia,
+  ...PARSER_REGIONALI,
+  ...PARSER_CAMERALI,
 };
 
 export function risolviParser(parserKey: string): ParserFonte | null {

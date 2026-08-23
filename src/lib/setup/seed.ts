@@ -1,6 +1,8 @@
 import type { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { ricalcolaTuttiIMatch } from "@/lib/matching/engine";
+import { REGIONI } from "@/lib/monitoring/parsers/regionale/config";
+import { CAMERE_DI_COMMERCIO } from "@/lib/monitoring/parsers/camerale/config";
 
 /**
  * Logica di seed condivisa tra `prisma/seed.ts` (CLI, `npm run seed`) e
@@ -57,44 +59,25 @@ export async function eseguiSeed(prisma: PrismaClient) {
       url: "https://www.cciaasudestsicilia.it/bandi",
       parserKey: "cciaa-sud-est-sicilia",
     },
-    // --- Fase 2: fonti regionali (Livello 2). Sicilia come priorità
-    // (territorio MOLO), poi le regioni a maggiore densità di imprese.
-    // Le restanti Regioni si aggiungono progressivamente (vedi README).
-    {
-      nome: "Regione Sicilia — Bandi",
+    // --- Fonti regionali (Livello 2): tutte le 20 Regioni, generate da
+    // ../monitoring/parsers/regionale/config.ts. Sicilia è la prima
+    // dell'elenco (territorio MOLO), ma sono tutte attive da subito.
+    ...REGIONI.map((r) => ({
+      nome: `${r.ente} — Bandi`,
       livello: "L2_REGIONALE" as const,
-      regione: "Sicilia",
-      url: "https://www.regione.sicilia.it/la-regione-informa/bandi",
-      parserKey: "regione-sicilia",
-    },
-    {
-      nome: "Regione Lombardia — Bandi",
-      livello: "L2_REGIONALE" as const,
-      regione: "Lombardia",
-      url: "https://www.regione.lombardia.it/wps/portal/istituzionale/HP/bandi",
-      parserKey: "regione-lombardia",
-    },
-    {
-      nome: "Regione Lazio — Bandi",
-      livello: "L2_REGIONALE" as const,
-      regione: "Lazio",
-      url: "https://www.regione.lazio.it/bandi-e-avvisi",
-      parserKey: "regione-lazio",
-    },
-    {
-      nome: "Regione Campania — Bandi",
-      livello: "L2_REGIONALE" as const,
-      regione: "Campania",
-      url: "https://www.regione.campania.it/regione/it/tags/bandi",
-      parserKey: "regione-campania",
-    },
-    {
-      nome: "Regione Puglia — Bandi",
-      livello: "L2_REGIONALE" as const,
-      regione: "Puglia",
-      url: "https://www.regione.puglia.it/bandi",
-      parserKey: "regione-puglia",
-    },
+      regione: r.regione,
+      url: r.url,
+      parserKey: `regione-${r.slug}`,
+    })),
+    // --- Fonti camerali aggiuntive (Livello 3), oltre alla CCIAA Sud Est
+    // Sicilia già sopra — generate da ../monitoring/parsers/camerale/config.ts.
+    ...CAMERE_DI_COMMERCIO.map((c) => ({
+      nome: `${c.ente} — Bandi`,
+      livello: "L3_CAMERALE" as const,
+      regione: c.regione,
+      url: c.url,
+      parserKey: `cciaa-${c.slug}`,
+    })),
   ];
 
   for (const f of fonti) {

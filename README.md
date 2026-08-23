@@ -46,11 +46,6 @@ Questa build copre la **Fase 1** del piano a fasi concordato:
 
 **Fase 2** aggiunge:
 
-- Fonti regionali (Livello 2): Sicilia (priorità, territorio MOLO) +
-  Lombardia, Lazio, Campania, Puglia. Le altre 15 Regioni si aggiungono
-  progressivamente con lo stesso pattern — vedi
-  `src/lib/monitoring/parsers/regionale/factory.ts`: una nuova regione è
-  un file di ~8 righe che configura la factory, più la riga `Fonte` a DB.
 - Timeline Gantt rifinita: zoom, preset di intervallo (3 mesi/6 mesi/1
   anno/tutto), skeleton di caricamento dedicato.
 - Sezione "Scadenze imminenti" in home dashboard (misure che scadono
@@ -59,24 +54,64 @@ Questa build copre la **Fase 1** del piano a fasi concordato:
   misura e in totale), con stato pratica aggiornabile dalla card
   dettaglio misura. Il ricalcolo dei match ora preserva lo stato pratica
   impostato dal team invece di azzerarlo ad ogni modifica.
+- **Copertura fonti estesa a tutte le 46**: 4 nazionali + tutte le 20
+  Regioni (21 fonti, Trentino-Alto Adige contando le due Province Autonome
+  separatamente) + 21 Camere di Commercio (CCIAA Sud Est Sicilia più un
+  batch di 20 tra le principali per densità di imprese). Vedi
+  `src/lib/monitoring/parsers/regionale/config.ts` e `.../camerale/config.ts`
+  — una fonte in più è una riga di configurazione, il parser viene generato
+  automaticamente dalla factory (`regionale/factory.ts`, `camerale/factory.ts`).
+- **Estrazione a due livelli** (`estraiVociListaGenerico` in
+  `src/lib/monitoring/parsers/shared.ts`): prova prima i selettori CSS
+  specifici del sito, poi esegue *sempre* anche una scansione euristica su
+  tutti i link della pagina, basata su parole chiave tipiche di un
+  bando/avviso (non su classi/id) — così una fonte mai calibrata a mano
+  restituisce comunque qualcosa invece di tornare a mani vuote. Bias
+  volutamente verso il recall ("trovarle tutte"): qualche falso positivo in
+  più si corregge in un attimo con "Segnala errore", una misura mai vista
+  invece sfugge del tutto al radar.
+- Pulsante "Scansiona tutte ora" in **Fonti monitorate**, con riepilogo
+  (fonti totali / ultimo scan ok / in errore / mai scansionate / misure
+  rilevate) e filtri per livello ed esito — utile per calibrare le fonti
+  subito dopo un deploy invece di aspettare il primo giro di cron.
+- Logo ufficiale "Sonar 4.0" (`public/logo-icon.png`, `public/logo-full.png`)
+  integrato in login, sidebar, header mobile e favicon.
 
 Non ancora in questa build (fasi successive, da confermare una alla volta):
-frontend pubblico "Finanza Agevolata Match" (Fase 3), Livello 3 camerale
-oltre Sicilia (Fase 4), pipeline kanban (Fase 5 opzionale), le restanti 15
-fonti regionali di Livello 2.
+frontend pubblico "Finanza Agevolata Match" (Fase 3), le restanti ~40 Camere
+di Commercio oltre al batch attuale (Fase 4), pipeline kanban (Fase 5
+opzionale).
 
-### Nota importante sui parser di monitoraggio
+### Nota importante sui parser di monitoraggio — serve un giro di calibrazione reale
 
-L'ambiente in cui questa build è stata sviluppata non ha accesso alla rete
-pubblica (policy di sandboxing), quindi i selettori CSS dei 5 parser in
-`src/lib/monitoring/parsers/` sono stati scritti **senza poter verificare
-l'HTML reale** dei siti target — sono un best-effort documentato in testa a
-ciascun file. Al primo scan reale (da un ambiente con accesso a Internet),
-se una fonte non produce misure pur rispondendo con successo, è quasi
-certamente un problema di selettori da calibrare in quel file — il resto del
-motore (fetch, robots.txt, diffing, upsert, log, ricalcolo match) non va
-toccato. Ogni scan fallito è comunque loggato in `ScanLog` con il messaggio
-di errore, visibile nella pagina **Fonti monitorate** della dashboard.
+L'ambiente in cui questa build è stata sviluppata **non ha accesso alla rete
+pubblica** (policy di sandboxing) — quindi né gli URL delle 46 fonti né i
+selettori CSS dei parser hanno potuto essere verificati contro l'HTML reale
+dei siti. È un limite tecnico di questo ambiente, non del motore: il
+deploy su Vercel (o qualunque hosting con accesso reale a Internet) ce l'ha,
+il motore no.
+
+Cosa è stato fatto per limitare il danno di questo limite:
+
+1. L'estrazione euristica (vedi sopra) non dipende da selettori esatti, solo
+   da parole chiave nel testo dei link — funziona ragionevolmente anche su
+   siti mai visti.
+2. Gli URL delle fonti puntano all'homepage istituzionale quando non è stato
+   possibile indovinare con sicurezza il percorso esatto della sezione
+   bandi — evita un 404 secco e lascia lavorare l'euristica dal menu
+   principale.
+3. Ogni scan (riuscito o fallito) è **sempre** loggato in `ScanLog`, visibile
+   per fonte nella pagina **Fonti monitorate**, con il messaggio di errore
+   esatto (dominio sbagliato, 403, timeout, ecc.).
+
+**Primo passo consigliato dopo il deploy**: dalla dashboard, Fonti
+monitorate → "Scansiona tutte ora", poi guardare il riepilogo. Le fonti in
+errore da dominio sbagliato (es. un Comune di Commercio che ha cambiato URL
+dopo un accorpamento) si correggono aggiornando `url` nel relativo file di
+config e ripushando — non serve toccare il motore. Le fonti che rispondono
+ma non trovano misure utili vanno quasi sempre migliorate aggiungendo
+selettori CSS specifici in `selettoriVoce` (vedi le factory) una volta
+ispezionato l'HTML reale della pagina bandi.
 
 ## Stack
 

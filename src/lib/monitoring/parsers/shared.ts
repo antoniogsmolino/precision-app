@@ -90,12 +90,143 @@ export type EstrazioneVoceLista = {
   testoCompleto: string;
 };
 
+// --- Scansione euristica: piano B (anzi, sempre attiva) quando i selettori
+// CSS specifici di un sito non sono affidabili. Non richiede di conoscere la
+// struttura HTML della pagina: assegna un punteggio ad ogni link della pagina
+// in base a segnali testuali tipici di un bando/avviso, indipendentemente da
+// classi o id. Serve a massimizzare le probabilità di trovare le misure
+// anche su fonti mai calibrate a mano — a costo di qualche falso positivo
+// in più, accettabile: una misura sbagliata si corregge in un attimo con
+// "Segnala errore", una misura MAI vista invece sfugge del tutto al radar.
+const PAROLE_CHIAVE_BANDO = [
+  "bando",
+  "bandi",
+  "avviso",
+  "avvisi",
+  "voucher",
+  "contributo",
+  "contributi",
+  "incentivo",
+  "incentivi",
+  "finanziamento",
+  "finanziamenti",
+  "agevolazione",
+  "agevolazioni",
+  "misura",
+  "misure",
+  "sovvenzione",
+  "sovvenzioni",
+  "credito d'imposta",
+  "credito d imposta",
+  "fondo perduto",
+  "manifestazione di interesse",
+  "call for",
+  "graduatoria",
+  "domande",
+  "sportello",
+];
+
+const PAROLE_ESCLUSE = [
+  "privacy",
+  "cookie",
+  "note legali",
+  "accessibilit",
+  "mappa del sito",
+  "sitemap",
+  "amministrazione trasparente",
+  "posta elettronica certificata",
+  "credits",
+  "newsletter",
+  "cerca nel sito",
+  "accedi",
+  "login",
+  "registrati",
+  "facebook",
+  "twitter",
+  "instagram",
+  "linkedin",
+  "youtube",
+  "canale rss",
+  "rss feed",
+  "vai al contenuto",
+  "salta al contenuto",
+  "torna su",
+  "chi siamo",
+  "contatti",
+  "lavora con noi",
+];
+
+const ESTENSIONI_FILE_DIRETTO = /\.(pdf|jpg|jpeg|png|zip|rar|doc|docx|xls|xlsx)(\?.*)?$/i;
+
+function punteggioVoceBando(titolo: string, href: string): number {
+  const t = titolo.toLowerCase();
+  let punti = 0;
+
+  if (t.length < 8 || t.length > 220) punti -= 6;
+  for (const parola of PAROLE_CHIAVE_BANDO) if (t.includes(parola)) punti += 3;
+  for (const parola of PAROLE_ESCLUSE) if (t.includes(parola)) punti -= 12;
+  if (/\d{1,2}[/\-.]\d{1,2}[/\-.]\d{4}/.test(t)) punti += 2; // data esplicita nel testo del link
+  if (/€|\beuro\b/.test(t)) punti += 1;
+  if (ESTENSIONI_FILE_DIRETTO.test(href)) punti -= 8; // link diretto a un file, non a una pagina di dettaglio
+  if (href.startsWith("#") || href.startsWith("javascript:") || href.startsWith("mailto:") || href.startsWith("tel:")) {
+    punti -= 20;
+  }
+
+  return punti;
+}
+
 /**
- * Strategia generica "elenco di card/righe con un link": prova una lista di
- * selettori CSS candidati (dal più specifico al più generico) e restituisce
- * la prima lista con abbastanza voci plausibili (titolo non vuoto + link).
- * Ogni parser di fonte la usa come primo passo, poi applica le proprie
- * regole per interpretare scadenza/importo/requisiti dal testo della voce.
+ * Scansiona TUTTI i link della pagina e tiene solo quelli con punteggio
+ * positivo — nessuna dipendenza da selettori CSS specifici del sito.
+ */
+function estraiVociListaEuristica($: cheerio.CheerioAPI, baseUrl: string, massimoRisultati = 80): EstrazioneVoceLista[] {
+  const candidati: (EstrazioneVoceLista & { punti: number })[] = [];
+
+  $("a[href]").each((_, el) => {
+    const $link = $(el);
+    const href = $link.attr("href") ?? "";
+    const url = risolviUrl(baseUrl, href);
+    if (!url) return;
+
+    const titolo = testoPulito($link);
+    if (!titolo) return;
+
+    const punti = punteggioVoceBando(titolo, href);
+    if (punti <= 0) return;
+
+    // Un po' di contesto in più dal contenitore del link (es. la card che lo racchiude).
+    const $contenitore = $link.parent();
+    const testoCompleto = testoPulito($contenitore.length ? $contenitore : $link);
+
+    candidati.push({ linkDettaglio: url, titolo, testoCompleto, punti });
+  });
+
+  candidati.sort((a, b) => b.punti - a.punti);
+
+  const viste = new Set<string>();
+  const risultato: EstrazioneVoceLista[] = [];
+  for (const c of candidati) {
+    if (viste.has(c.linkDettaglio)) continue;
+    viste.add(c.linkDettaglio);
+    risultato.push({ linkDettaglio: c.linkDettaglio, titolo: c.titolo, testoCompleto: c.testoCompleto });
+    if (risultato.length >= massimoRisultati) break;
+  }
+  return risultato;
+}
+
+/**
+ * Strategia di estrazione a due livelli, pensata per dare priorità al
+ * *non perdere misure* (recall) rispetto alla precisione chirurgica:
+ *
+ *  1. Prova i selettori CSS candidati (dal più specifico al più generico) —
+ *     quando azzeccati danno il segnale più pulito (titolo + contenitore
+ *     corretti).
+ *  2. Esegue SEMPRE anche la scansione euristica su tutti i link della
+ *     pagina (vedi estraiVociListaEuristica), che non dipende dalla
+ *     struttura HTML del sito.
+ *  3. Unisce i risultati deduplicando per URL — così una fonte mai
+ *     calibrata a mano continua comunque a restituire qualcosa, invece di
+ *     tornare a mani vuote.
  */
 export function estraiVociListaGenerico(
   $: cheerio.CheerioAPI,
@@ -103,6 +234,8 @@ export function estraiVociListaGenerico(
   selettoriCandidati: string[],
   minVociAttese = 1,
 ): EstrazioneVoceLista[] {
+  let vociDaSelettori: EstrazioneVoceLista[] = [];
+
   for (const selettore of selettoriCandidati) {
     const nodi = $(selettore);
     const voci: EstrazioneVoceLista[] = [];
@@ -118,9 +251,24 @@ export function estraiVociListaGenerico(
       }
     });
 
-    if (voci.length >= minVociAttese) return voci;
+    if (voci.length >= minVociAttese) {
+      vociDaSelettori = voci;
+      break;
+    }
   }
-  return [];
+
+  const vociEuristiche = estraiVociListaEuristica($, baseUrl);
+
+  const viste = new Set(vociDaSelettori.map((v) => v.linkDettaglio));
+  const unite = [...vociDaSelettori];
+  for (const v of vociEuristiche) {
+    if (!viste.has(v.linkDettaglio)) {
+      viste.add(v.linkDettaglio);
+      unite.push(v);
+    }
+  }
+
+  return unite;
 }
 
 export function buildMisuraGrezzaBase(overrides: Partial<MisuraGrezza> & Pick<MisuraGrezza, "externalId" | "titolo" | "linkFonteUfficiale">): MisuraGrezza {

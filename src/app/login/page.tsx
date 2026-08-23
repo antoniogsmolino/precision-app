@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { CardGlass } from "@/components/ui/card";
@@ -46,11 +47,11 @@ export default function LoginPage() {
 
       <div className="relative w-full max-w-sm">
         <div className="mb-8 animate-rise-in text-center" style={{ animationDelay: "0.05s" }}>
-          <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-xl font-bold text-brand-600 shadow-glow">
-            M
+          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-white p-2.5 shadow-glow">
+            <Image src="/logo-icon.png" alt="Sonar 4.0" width={512} height={512} className="h-full w-full" priority />
           </div>
-          <h1 className="text-xl font-semibold tracking-tight text-white">Radar Finanza Agevolata</h1>
-          <p className="mt-1.5 text-sm text-white/50">Accesso riservato al team MOLO 4.0</p>
+          <h1 className="text-2xl font-bold tracking-tight text-white">Sonar 4.0</h1>
+          <p className="mt-1.5 text-sm text-white/50">Radar Finanza Agevolata — accesso riservato al team MOLO</p>
         </div>
 
         <CardGlass className="animate-rise-in p-6" style={{ animationDelay: "0.12s" }}>

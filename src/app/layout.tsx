@@ -3,14 +3,18 @@ import { Providers } from "@/components/providers";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Radar Finanza Agevolata — MOLO 4.0",
+  title: "Sonar 4.0 — Radar Finanza Agevolata MOLO",
   description: "Il radar interno MOLO su bandi, incentivi e finanza agevolata.",
+  icons: {
+    icon: "/favicon.png",
+    apple: "/apple-icon.png",
+  },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#3A8DE8",
+  themeColor: "#E41F25",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

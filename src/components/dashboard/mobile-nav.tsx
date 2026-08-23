@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
+import Image from "next/image";
 import clsx from "clsx";
 import { SidebarNav } from "./sidebar-nav";
 import { SignOutButton } from "./sign-out-button";
@@ -31,12 +32,7 @@ export function MobileNav({ nome, email }: { nome?: string | null; email?: strin
   return (
     <>
       <header className="glass-surface-solid sticky top-0 z-30 flex h-14 items-center justify-between border-b border-ink/[0.06] px-4 md:hidden">
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-600 text-xs font-bold text-white">
-            M
-          </div>
-          <p className="text-sm font-semibold text-ink">Radar Finanza</p>
-        </div>
+        <Image src="/logo-full.png" alt="Sonar 4.0" width={1600} height={380} className="h-6 w-auto" priority />
         <button
           onClick={() => setAperto(true)}
           aria-label="Apri il menu"
@@ -67,14 +63,9 @@ export function MobileNav({ nome, email }: { nome?: string | null; email?: strin
         aria-label="Menu di navigazione"
       >
         <div className="flex items-center justify-between gap-2.5 px-5 py-5">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-brand-600 text-sm font-bold text-white">
-              M
-            </div>
-            <div className="leading-tight">
-              <p className="text-sm font-semibold text-ink">Radar Finanza</p>
-              <p className="text-[11px] text-ink/40">MOLO 4.0</p>
-            </div>
+          <div>
+            <Image src="/logo-full.png" alt="Sonar 4.0" width={1600} height={380} className="h-6 w-auto" />
+            <p className="mt-1 text-[11px] text-ink/40">Radar Finanza Agevolata · MOLO</p>
           </div>
           <button
             onClick={() => setAperto(false)}
