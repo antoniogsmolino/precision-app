@@ -1,6 +1,5 @@
 import robotsParser from "robots-parser";
-
-const USER_AGENT = process.env.SCAN_USER_AGENT ?? "MOLO4.0-RadarFinanzaAgevolata/1.0";
+import { USER_AGENT, HEADERS_FETCH } from "./http";
 
 /**
  * Verifica il robots.txt della fonte prima di ogni scansione. Se il
@@ -14,7 +13,7 @@ export async function verificaRobotsTxt(url: string): Promise<{ consentito: bool
     const origin = new URL(url).origin;
     const robotsUrl = `${origin}/robots.txt`;
     const res = await fetch(robotsUrl, {
-      headers: { "User-Agent": USER_AGENT },
+      headers: HEADERS_FETCH,
       signal: AbortSignal.timeout(10_000),
     });
 

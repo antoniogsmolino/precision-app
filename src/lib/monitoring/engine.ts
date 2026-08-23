@@ -2,11 +2,11 @@ import { prisma } from "@/lib/prisma";
 import { risolviParser } from "./parsers/registry";
 import { verificaRobotsTxt } from "./robots";
 import { hashContenuto } from "./parsers/shared";
+import { HEADERS_FETCH, messaggioErroreFetch } from "./http";
 import { ricalcolaMatchPerMisura } from "@/lib/matching/engine";
 import type { MisuraGrezza } from "./types";
 import type { Fonte } from "@prisma/client";
 
-const USER_AGENT = process.env.SCAN_USER_AGENT ?? "MOLO4.0-RadarFinanzaAgevolata/1.0";
 const TIMEOUT_FETCH_MS = 20_000;
 
 export interface EsitoScanFonte {
@@ -76,7 +76,7 @@ export async function scanFonte(fonteId: string, opts: { forza?: boolean } = {})
 
   try {
     const res = await fetch(fonte.url, {
-      headers: { "User-Agent": USER_AGENT, Accept: "text/html" },
+      headers: HEADERS_FETCH,
       signal: AbortSignal.timeout(TIMEOUT_FETCH_MS),
     });
     if (!res.ok) {
@@ -158,7 +158,7 @@ export async function scanFonte(fonteId: string, opts: { forza?: boolean } = {})
 
     return { fonteId, nome: fonte.nome, saltata: false, esito: "SUCCESSO", misureNuove: nuove, misureAggiornate: aggiornate };
   } catch (err) {
-    const messaggio = err instanceof Error ? err.message : String(err);
+    const messaggio = messaggioErroreFetch(err);
     await prisma.fonte.update({
       where: { id: fonte.id },
       data: { ultimaScansioneAt: new Date(), ultimoEsitoScan: "ERRORE" },
