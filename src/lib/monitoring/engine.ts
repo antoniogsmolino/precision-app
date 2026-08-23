@@ -102,6 +102,24 @@ export async function scanFonte(fonteId: string, opts: { forza?: boolean } = {})
     const { misure, contenutoGrezzo } = await parser(html, fonte.url);
     const hash = hashContenuto(contenutoGrezzo);
 
+    // Diagnostica per il caso "fetch riuscito ma zero misure trovate":
+    // senza questo, un fetch che porta a casa una pagina vuota/quasi-vuota
+    // (es. contenuto caricato via JavaScript lato client, che il motore —
+    // che legge solo l'HTML grezzo — non vede) è indistinguibile da un
+    // fetch che porta a casa la pagina vera ma con selettori/euristica che
+    // non riconoscono la sua struttura: stessa "SUCCESSO, 0 misure" in
+    // entrambi i casi. Contare i tag <a> nell'HTML grezzo permette di
+    // capire quale dei due casi è, dal solo ScanLog, senza dover ispezionare
+    // la pagina a mano ogni volta.
+    let diagnosticaZeroMisure: string | undefined;
+    if (misure.length === 0) {
+      const numeroLinkTotali = (html.match(/<a[\s>]/gi) ?? []).length;
+      diagnosticaZeroMisure =
+        numeroLinkTotali < 5
+          ? `0 misure estratte — HTML di ${html.length} caratteri con solo ${numeroLinkTotali} link totali: probabile pagina vuota/caricata via JavaScript, non un problema di selettori.`
+          : `0 misure estratte — HTML di ${html.length} caratteri con ${numeroLinkTotali} link totali: la pagina ha contenuto ma nessun link supera il filtro di rilevanza, probabile problema di selettori/struttura da calibrare.`;
+    }
+
     let nuove = 0;
     let aggiornate = 0;
 
@@ -194,7 +212,7 @@ export async function scanFonte(fonteId: string, opts: { forza?: boolean } = {})
       where: { id: fonte.id },
       data: { ultimaScansioneAt: new Date(), ultimoEsitoScan: "SUCCESSO", ultimoHashContenuto: hash },
     });
-    await registraLog(fonte, "SUCCESSO", nuove, aggiornate);
+    await registraLog(fonte, "SUCCESSO", nuove, aggiornate, diagnosticaZeroMisure);
 
     return { fonteId, nome: fonte.nome, saltata: false, esito: "SUCCESSO", misureNuove: nuove, misureAggiornate: aggiornate };
   } catch (err) {
