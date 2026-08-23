@@ -77,6 +77,38 @@ Questa build copre la **Fase 1** del piano a fasi concordato:
 - Logo ufficiale "Sonar 4.0" (`public/logo-icon.png`, `public/logo-full.png`)
   integrato in login, sidebar, header mobile e favicon.
 
+**Dopo il primo scan reale su tutte le fonti (calibrazione post-deploy)**,
+tre correzioni fatte sui dati emersi dal primo giro:
+
+- **Precisione dell'estrazione**: prima il filtro di rilevanza
+  (`punteggioVoceBando`) si applicava solo alla scansione euristica — i link
+  trovati tramite selettore CSS (incluso il selettore generico di ultima
+  istanza `main a[href]`, usato quando i selettori specifici del sito non
+  matchano nulla) passavano senza alcun filtro, catturando qualunque link
+  nel contenuto principale della pagina: news, eventi culturali, servizi
+  (bollo auto, aste immobiliari...), non solo bandi. Ora il filtro è un gate
+  unico applicato SEMPRE, indipendentemente da quale dei due percorsi trova
+  il link, con soglia più alta (richiede un segnale forte: parola chiave di
+  dominio o URL in un percorso tipico `/bandi/`, `/avvisi/`...).
+- **Niente più scadenze finte spacciate per reali**: quando un parser non
+  trova una data di scadenza leggibile nella pagina, il motore doveva comunque
+  valorizzare il campo (obbligatorio a schema) con un segnaposto
+  ("oggi + 1 anno") — prima questo restava indistinguibile da una scadenza
+  vera, facendo sembrare (anche in timeline) che decine di misure scadessero
+  tutte lo stesso giorno. Ora è tracciato esplicitamente
+  (`Misura.scadenzaStimata`), mostrato in UI con badge "Data da verificare",
+  ed **escluso** dal pannello "Scadenze imminenti" e dall'ordinamento per
+  urgenza (non essendo una scadenza vera, non deve mai sembrare più o meno
+  urgente di quanto si sappia per certo).
+- **Vista di default cambiata da Timeline a Elenco**: con centinaia di
+  misure reali una Gantt diventa illeggibile (barre accavallate, scale
+  fitte) — l'Elenco (ordinato per urgenza reale: in scadenza → attive →
+  future → scadute, le "data da verificare" sempre in fondo) resta leggibile
+  a qualunque numero di risultati ed è ora la vista di apertura; la Timeline
+  resta disponibile come vista secondaria, con un avviso quando i risultati
+  filtrati superano la soglia di leggibilità. Aggiunta anche una ricerca
+  libera per titolo/ente.
+
 Non ancora in questa build (fasi successive, da confermare una alla volta):
 frontend pubblico "Finanza Agevolata Match" (Fase 3), le restanti ~40 Camere
 di Commercio oltre al batch attuale (Fase 4), pipeline kanban (Fase 5

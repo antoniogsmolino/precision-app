@@ -1,10 +1,13 @@
 import { calcolaStatoMisura, type StatoMisura } from "./stato";
 
 export interface MisuraFiltrabile {
+  titolo?: string;
+  ente?: string;
   categoria: string;
   tipoAgevolazione: string;
   dataApertura: string | Date;
   dataScadenza: string | Date;
+  scadenzaStimata?: boolean;
   regioniAmmesse: string[];
   atecoAmmessi: string[];
   atecoEsclusi: string[];
@@ -25,6 +28,7 @@ export interface FiltriMisure {
   importoMin: number | null;
   importoMax: number | null;
   fonteIds: string[];
+  testoLibero: string;
 }
 
 export const FONTE_MANUALE_ID = "__manuale__";
@@ -38,6 +42,7 @@ export const FILTRI_VUOTI: FiltriMisure = {
   importoMin: null,
   importoMax: null,
   fonteIds: [],
+  testoLibero: "",
 };
 
 export function haFiltriAttivi(f: FiltriMisure): boolean {
@@ -49,7 +54,8 @@ export function haFiltriAttivi(f: FiltriMisure): boolean {
     f.atecoSettore.trim() !== "" ||
     f.importoMin != null ||
     f.importoMax != null ||
-    f.fonteIds.length > 0
+    f.fonteIds.length > 0 ||
+    f.testoLibero.trim() !== ""
   );
 }
 
@@ -60,6 +66,12 @@ function valoreIndicativo(m: MisuraFiltrabile): number | null {
 
 export function filtraMisure<T extends MisuraFiltrabile>(misure: T[], f: FiltriMisure): T[] {
   return misure.filter((m) => {
+    if (f.testoLibero.trim() !== "") {
+      const query = f.testoLibero.trim().toLowerCase();
+      const testo = `${m.titolo ?? ""} ${m.ente ?? ""}`.toLowerCase();
+      if (!testo.includes(query)) return false;
+    }
+
     const stato = calcolaStatoMisura(new Date(m.dataApertura), new Date(m.dataScadenza));
     if (f.stati.length > 0 && !f.stati.includes(stato)) return false;
 
@@ -94,5 +106,35 @@ export function filtraMisure<T extends MisuraFiltrabile>(misure: T[], f: FiltriM
     }
 
     return true;
+  });
+}
+
+const PRIORITA_STATO: Record<StatoMisura, number> = {
+  IN_SCADENZA: 0,
+  ATTIVA: 1,
+  FUTURA: 2,
+  SCADUTA: 3,
+};
+
+/**
+ * Ordina per urgenza reale invece che per data grezza: prima le misure con
+ * una scadenza vera (in scadenza, poi attive, poi future, poi scadute in
+ * fondo), a parità di stato le più vicine alla scadenza prima. Le misure
+ * con `scadenzaStimata` (nessuna data reale trovata dal parser, solo un
+ * segnaposto) vanno SEMPRE dopo tutte le altre: mischiarle in base a una
+ * data inventata le farebbe sembrare più o meno urgenti di quanto si sappia
+ * per certo.
+ */
+export function ordinaMisurePerUrgenza<T extends MisuraFiltrabile>(misure: T[]): T[] {
+  return [...misure].sort((a, b) => {
+    const stimataA = a.scadenzaStimata ? 1 : 0;
+    const stimataB = b.scadenzaStimata ? 1 : 0;
+    if (stimataA !== stimataB) return stimataA - stimataB;
+
+    const statoA = calcolaStatoMisura(new Date(a.dataApertura), new Date(a.dataScadenza));
+    const statoB = calcolaStatoMisura(new Date(b.dataApertura), new Date(b.dataScadenza));
+    if (PRIORITA_STATO[statoA] !== PRIORITA_STATO[statoB]) return PRIORITA_STATO[statoA] - PRIORITA_STATO[statoB];
+
+    return new Date(a.dataScadenza).getTime() - new Date(b.dataScadenza).getTime();
   });
 }

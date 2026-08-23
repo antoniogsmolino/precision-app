@@ -20,6 +20,7 @@ export interface MisuraCardData {
   tettoMassimo?: number | string | null;
   dataApertura: string | Date;
   dataScadenza: string | Date;
+  scadenzaStimata?: boolean;
   descrizioneBreve: string;
   rilevataAutomaticamente: boolean;
   regioniAmmesse: string[];
@@ -63,16 +64,26 @@ export function MisuraCard({ misura }: { misura: MisuraCardData }) {
                 Auto
               </Badge>
             )}
+            {misura.scadenzaStimata && (
+              <Badge
+                className="border-urgency-500/25 bg-urgency-50 text-urgency-700"
+                title="Nessuna scadenza trovata sulla pagina di origine: data segnaposto, non reale"
+              >
+                Data da verificare
+              </Badge>
+            )}
           </div>
 
           <div className="mt-4 flex items-center justify-between border-t border-ink/[0.06] pt-3">
             <span className="text-[15px] font-semibold text-ink">{formatValoreMisura(misura)}</span>
             <span className="text-xs text-ink/40">
-              {stato === "SCADUTA"
-                ? "Scaduta"
-                : stato === "FUTURA"
-                  ? "Apre a breve"
-                  : `Scade tra ${giorni}g`}
+              {misura.scadenzaStimata
+                ? "scadenza non nota"
+                : stato === "SCADUTA"
+                  ? "Scaduta"
+                  : stato === "FUTURA"
+                    ? "Apre a breve"
+                    : `Scade tra ${giorni}g`}
             </span>
           </div>
 

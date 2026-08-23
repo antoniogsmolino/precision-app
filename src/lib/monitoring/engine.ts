@@ -21,7 +21,7 @@ export interface EsitoScanFonte {
 }
 
 function campiRilevantiUguali(a: MisuraGrezza, esistente: {
-  titolo: string; dataApertura: Date; dataScadenza: Date;
+  titolo: string; dataApertura: Date; dataScadenza: Date; scadenzaStimata: boolean;
   tipoAgevolazione: string; tipoValore: string;
   importoFisso: unknown; importoMin: unknown; importoMax: unknown; percentuale: unknown; tettoMassimo: unknown;
 }): boolean {
@@ -29,6 +29,7 @@ function campiRilevantiUguali(a: MisuraGrezza, esistente: {
     a.titolo === esistente.titolo &&
     a.dataApertura.getTime() === new Date(esistente.dataApertura).getTime() &&
     a.dataScadenza.getTime() === new Date(esistente.dataScadenza).getTime() &&
+    (a.scadenzaStimata ?? false) === esistente.scadenzaStimata &&
     a.tipoAgevolazione === esistente.tipoAgevolazione &&
     a.tipoValore === esistente.tipoValore &&
     (a.importoFisso ?? null) === (esistente.importoFisso == null ? null : Number(esistente.importoFisso)) &&
@@ -112,6 +113,7 @@ export async function scanFonte(fonteId: string, opts: { forza?: boolean } = {})
             tettoMassimo: grezza.tettoMassimo ?? null,
             dataApertura: grezza.dataApertura,
             dataScadenza: grezza.dataScadenza,
+            scadenzaStimata: grezza.scadenzaStimata ?? false,
             atecoAmmessi: grezza.atecoAmmessi ?? [],
             atecoEsclusi: grezza.atecoEsclusi ?? [],
             regioniAmmesse: grezza.regioniAmmesse ?? [],
@@ -136,6 +138,7 @@ export async function scanFonte(fonteId: string, opts: { forza?: boolean } = {})
             titolo: grezza.titolo,
             dataApertura: grezza.dataApertura,
             dataScadenza: grezza.dataScadenza,
+            scadenzaStimata: grezza.scadenzaStimata ?? false,
             tipoAgevolazione: grezza.tipoAgevolazione,
             tipoValore: grezza.tipoValore,
             importoFisso: grezza.importoFisso ?? null,

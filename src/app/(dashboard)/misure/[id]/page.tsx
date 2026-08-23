@@ -52,6 +52,7 @@ interface MisuraDettaglio {
   tettoMassimo: number | string | null;
   dataApertura: string;
   dataScadenza: string;
+  scadenzaStimata: boolean;
   atecoAmmessi: string[];
   atecoEsclusi: string[];
   regioniAmmesse: string[];
@@ -151,9 +152,25 @@ export default function MisuraDettaglioPage() {
         />
         <StatTile
           label="Scadenza"
-          value={stato === "SCADUTA" ? "Scaduta" : stato === "FUTURA" ? "Non ancora aperta" : `Tra ${giorni} giorni`}
+          value={
+            misura.scadenzaStimata
+              ? "Non nota"
+              : stato === "SCADUTA"
+                ? "Scaduta"
+                : stato === "FUTURA"
+                  ? "Non ancora aperta"
+                  : `Tra ${giorni} giorni`
+          }
         />
       </div>
+
+      {misura.scadenzaStimata && (
+        <div className="mt-4 rounded-xl border border-urgency-500/25 bg-urgency-50 px-4 py-3 text-[13px] text-urgency-700">
+          Il motore non ha trovato una data di scadenza leggibile sulla pagina di origine: quella mostrata
+          sopra è solo un segnaposto, non una scadenza reale. Verifica sulla fonte ufficiale (link più sotto)
+          prima di usarla, o correggila da &quot;Segnala errore / Modifica&quot;.
+        </div>
+      )}
 
       <Card className="mt-6">
         <CardBody className="pt-5">

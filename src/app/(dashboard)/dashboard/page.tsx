@@ -13,10 +13,17 @@ import { Button } from "@/components/ui/button";
 import { SkeletonCard, SkeletonTimeline } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { STATO_TIMELINE_COLOR, STATO_LABEL, type StatoMisura } from "@/lib/misure/stato";
-import { FILTRI_VUOTI, filtraMisure, type FiltriMisure } from "@/lib/misure/filtri";
+import { FILTRI_VUOTI, filtraMisure, ordinaMisurePerUrgenza, type FiltriMisure } from "@/lib/misure/filtri";
+import { Input } from "@/components/ui/input";
 import clsx from "clsx";
 
-type Vista = "timeline" | "elenco";
+type Vista = "elenco" | "timeline";
+
+// Oltre questa soglia la Gantt smette di essere leggibile (barre
+// sovrapposte, scale illeggibili su mobile) — l'elenco ordinato per
+// urgenza resta la vista di riferimento a qualunque numero di misure, la
+// timeline è pensata per un sottoinsieme filtrato più piccolo.
+const SOGLIA_TIMELINE_LEGGIBILE = 60;
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -25,7 +32,7 @@ export default function DashboardPage() {
   const [fonti, setFonti] = useState<{ id: string; nome: string }[]>([]);
   const [errore, setErrore] = useState<string | null>(null);
   const [filtri, setFiltri] = useState<FiltriMisure>(FILTRI_VUOTI);
-  const [vista, setVista] = useState<Vista>("timeline");
+  const [vista, setVista] = useState<Vista>("elenco");
 
   useEffect(() => {
     Promise.all([
@@ -43,6 +50,7 @@ export default function DashboardPage() {
   }, []);
 
   const misureFiltrate = useMemo(() => (misure ? filtraMisure(misure, filtri) : []), [misure, filtri]);
+  const misureOrdinate = useMemo(() => ordinaMisurePerUrgenza(misureFiltrate), [misureFiltrate]);
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -55,8 +63,8 @@ export default function DashboardPage() {
         </div>
         <div className="flex items-center gap-2">
           <div className="flex rounded-full border border-ink/10 bg-ink/[0.03] p-0.5">
-            <ToggleVista label="Timeline" attivo={vista === "timeline"} onClick={() => setVista("timeline")} />
             <ToggleVista label="Elenco" attivo={vista === "elenco"} onClick={() => setVista("elenco")} />
+            <ToggleVista label="Timeline" attivo={vista === "timeline"} onClick={() => setVista("timeline")} />
           </div>
           <Link href="/misure/nuova" className="shrink-0">
             <Button size="sm" className="sm:h-9 sm:px-4 sm:text-sm">
@@ -65,6 +73,16 @@ export default function DashboardPage() {
           </Link>
         </div>
       </header>
+
+      <div className="border-b border-ink/[0.06] bg-white px-4 py-3 sm:px-6">
+        <Input
+          type="search"
+          placeholder="Cerca per titolo o ente…"
+          value={filtri.testoLibero}
+          onChange={(e) => setFiltri({ ...filtri, testoLibero: e.target.value })}
+          className="w-full sm:max-w-sm"
+        />
+      </div>
 
       {misure && (
         <div className="px-4 pt-4 sm:px-6 sm:pt-6">
@@ -119,13 +137,20 @@ export default function DashboardPage() {
               <Legenda />
               <TimelineToolbar timelineRef={timelineRef} />
             </div>
+            {misureFiltrate.length > SOGLIA_TIMELINE_LEGGIBILE && (
+              <p className="mb-3 rounded-lg bg-urgency-50 px-3 py-2 text-xs text-urgency-700">
+                {misureFiltrate.length} misure in questa vista: oltre le {SOGLIA_TIMELINE_LEGGIBILE} le barre si
+                accavallano e diventa difficile leggerla. Restringi con i filtri, oppure passa a &quot;Elenco&quot;
+                — resta leggibile a qualunque numero, sempre ordinato per urgenza.
+              </p>
+            )}
             <TimelineGantt ref={timelineRef} misure={misureFiltrate} onSelect={(id) => router.push(`/misure/${id}`)} />
           </div>
         )}
 
         {misure && misureFiltrate.length > 0 && vista === "elenco" && (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {misureFiltrate.map((m, i) => (
+            {misureOrdinate.map((m, i) => (
               <div key={m.id} className="animate-rise-in" style={{ animationDelay: `${Math.min(i, 10) * 40}ms` }}>
                 <MisuraCard misura={m} />
               </div>

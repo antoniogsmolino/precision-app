@@ -154,9 +154,21 @@ const PAROLE_ESCLUSE = [
   "chi siamo",
   "contatti",
   "lavora con noi",
+  "aste immobiliari",
+  "aste giudiziarie",
+  "avviso di vendita",
+  "avviso d'asta",
+  "bollo auto",
+  "visite guidate",
+  "orari di apertura",
+  "meteo",
+  "webcam",
 ];
 
 const ESTENSIONI_FILE_DIRETTO = /\.(pdf|jpg|jpeg|png|zip|rar|doc|docx|xls|xlsx)(\?.*)?$/i;
+
+/** Segnale positivo forte: il link punta a un percorso tipico di sezione bandi/avvisi. */
+const PERCORSO_BANDO = /\/(bandi|bando|avvisi|avviso|contributi|incentivi|agevolazioni|finanziamenti)\//i;
 
 function punteggioVoceBando(titolo: string, href: string): number {
   const t = titolo.toLowerCase();
@@ -165,6 +177,7 @@ function punteggioVoceBando(titolo: string, href: string): number {
   if (t.length < 8 || t.length > 220) punti -= 6;
   for (const parola of PAROLE_CHIAVE_BANDO) if (t.includes(parola)) punti += 3;
   for (const parola of PAROLE_ESCLUSE) if (t.includes(parola)) punti -= 12;
+  if (PERCORSO_BANDO.test(href)) punti += 4; // l'URL stesso vive in una sezione bandi/avvisi
   if (/\d{1,2}[/\-.]\d{1,2}[/\-.]\d{4}/.test(t)) punti += 2; // data esplicita nel testo del link
   if (/€|\beuro\b/.test(t)) punti += 1;
   if (ESTENSIONI_FILE_DIRETTO.test(href)) punti -= 8; // link diretto a un file, non a una pagina di dettaglio
@@ -174,6 +187,18 @@ function punteggioVoceBando(titolo: string, href: string): number {
 
   return punti;
 }
+
+/**
+ * Soglia minima per considerare un link una probabile misura: richiede
+ * almeno un segnale forte (una parola chiave di dominio, o un percorso URL
+ * tipico bandi/avvisi) — non basta un generico incrocio di punti deboli
+ * (es. una data + una lunghezza plausibile) come bastava prima. Trovato
+ * scansionando fonti reali: senza questa soglia più alta, pagine
+ * istituzionali con tanti link a news/eventi/servizi (che nel complesso
+ * possono comunque contenere una data o superare la lunghezza minima)
+ * finivano scambiate per misure — con titoli chiaramente non pertinenti.
+ */
+const SOGLIA_VOCE_BANDO = 3;
 
 /**
  * Scansiona TUTTI i link della pagina e tiene solo quelli con punteggio
@@ -192,7 +217,7 @@ function estraiVociListaEuristica($: cheerio.CheerioAPI, baseUrl: string, massim
     if (!titolo) return;
 
     const punti = punteggioVoceBando(titolo, href);
-    if (punti <= 0) return;
+    if (punti < SOGLIA_VOCE_BANDO) return;
 
     // Un po' di contesto in più dal contenitore del link (es. la card che lo racchiude).
     const $contenitore = $link.parent();
@@ -216,17 +241,25 @@ function estraiVociListaEuristica($: cheerio.CheerioAPI, baseUrl: string, massim
 
 /**
  * Strategia di estrazione a due livelli, pensata per dare priorità al
- * *non perdere misure* (recall) rispetto alla precisione chirurgica:
+ * *non perdere misure* (recall) rispetto alla precisione chirurgica — ma
+ * SEMPRE filtrata da `punteggioVoceBando`, sia che il candidato arrivi da
+ * un selettore CSS sia dalla scansione euristica: un selettore ampio come
+ * `main a[href]` (usato come ultima risorsa quando i selettori più
+ * specifici non trovano nulla, cosa comune su fonti mai calibrate a mano)
+ * senza questo filtro cattura QUALSIASI link della pagina — inclusi menu,
+ * news istituzionali ed eventi, non solo bandi. Il filtro di rilevanza è
+ * quindi un gate unico, indipendente da quale dei due percorsi ha trovato
+ * il link:
  *
  *  1. Prova i selettori CSS candidati (dal più specifico al più generico) —
  *     quando azzeccati danno il segnale più pulito (titolo + contenitore
- *     corretti).
+ *     corretti) — ma tiene solo i link che superano la soglia di rilevanza.
  *  2. Esegue SEMPRE anche la scansione euristica su tutti i link della
  *     pagina (vedi estraiVociListaEuristica), che non dipende dalla
- *     struttura HTML del sito.
+ *     struttura HTML del sito e applica lo stesso filtro.
  *  3. Unisce i risultati deduplicando per URL — così una fonte mai
  *     calibrata a mano continua comunque a restituire qualcosa, invece di
- *     tornare a mani vuote.
+ *     tornare a mani vuote, ma senza rumore da link non pertinenti.
  */
 export function estraiVociListaGenerico(
   $: cheerio.CheerioAPI,
@@ -243,10 +276,10 @@ export function estraiVociListaGenerico(
     nodi.each((_, el) => {
       const $el = $(el);
       const $link = $el.is("a") ? $el : $el.find("a[href]").first();
-      const href = $link.attr("href");
+      const href = $link.attr("href") ?? "";
       const url = risolviUrl(baseUrl, href);
       const titolo = testoPulito($link.length ? $link : $el);
-      if (url && titolo && titolo.length > 4) {
+      if (url && titolo && titolo.length > 4 && punteggioVoceBando(titolo, href) >= SOGLIA_VOCE_BANDO) {
         voci.push({ linkDettaglio: url, titolo, testoCompleto: testoPulito($el) });
       }
     });
@@ -275,6 +308,13 @@ export function buildMisuraGrezzaBase(overrides: Partial<MisuraGrezza> & Pick<Mi
   const oraPiuUnAnno = new Date();
   oraPiuUnAnno.setFullYear(oraPiuUnAnno.getFullYear() + 1);
 
+  // Il parser di fonte non ha trovato una scadenza leggibile nella pagina:
+  // "oggi + 1 anno" è solo un segnaposto per non lasciare il campo (NOT
+  // NULL a schema) vuoto — non è una data reale, quindi va marcata come
+  // tale (scadenzaStimata) invece di essere mostrata in UI come se lo
+  // fosse. Va calcolato PRIMA che il merge sotto applichi gli override.
+  const scadenzaNonTrovata = overrides.dataScadenza == null;
+
   const base: MisuraGrezza = {
     ente: "",
     categoria: "NAZIONALE",
@@ -283,6 +323,7 @@ export function buildMisuraGrezzaBase(overrides: Partial<MisuraGrezza> & Pick<Mi
     tipoValore: "IMPORTO_FISSO",
     dataApertura: new Date(),
     dataScadenza: oraPiuUnAnno,
+    scadenzaStimata: scadenzaNonTrovata,
     atecoAmmessi: [],
     atecoEsclusi: [],
     regioniAmmesse: [],

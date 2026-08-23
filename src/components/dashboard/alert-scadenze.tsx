@@ -10,6 +10,7 @@ interface MisuraAlert {
   ente: string;
   dataApertura: string | Date;
   dataScadenza: string | Date;
+  scadenzaStimata?: boolean;
   tipoValore: "IMPORTO_FISSO" | "RANGE" | "PERCENTUALE";
   importoFisso?: number | string | null;
   importoMin?: number | string | null;
@@ -24,6 +25,10 @@ export function AlertScadenze({ misure }: { misure: MisuraAlert[] }) {
   const inScadenza = misure
     .map((m) => ({ misura: m, giorni: giorniAllaScadenza(new Date(m.dataScadenza)) }))
     .filter(({ misura, giorni }) => {
+      // Una scadenza "stimata" (nessuna data reale trovata dal parser) non è
+      // mai un'urgenza vera: mostrarla qui rischierebbe di far correre il
+      // team dietro a una scadenza inventata dal motore, non dalla fonte.
+      if (misura.scadenzaStimata) return false;
       const stato = calcolaStatoMisura(new Date(misura.dataApertura), new Date(misura.dataScadenza));
       return stato === "IN_SCADENZA" && giorni >= 0;
     })

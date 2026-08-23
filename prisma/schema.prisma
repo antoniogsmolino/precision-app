@@ -121,6 +121,10 @@ model Misura {
 
   dataApertura DateTime
   dataScadenza DateTime
+  /// true quando dataScadenza è un fallback del parser (nessuna data letta
+  /// dalla pagina), non una scadenza confermata sulla fonte — mostrato in UI
+  /// come "data da verificare" ed escluso dagli alert di scadenza imminente.
+  scadenzaStimata Boolean @default(false)
 
   // Requisiti di ammissibilità — lo stato (Futura/Attiva/In scadenza/Scaduta)
   // NON è persistito: viene sempre ricalcolato da src/lib/misure/stato.ts

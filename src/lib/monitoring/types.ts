@@ -25,6 +25,13 @@ export interface MisuraGrezza {
   tettoMassimo?: number | null;
   dataApertura: Date;
   dataScadenza: Date;
+  /**
+   * true quando `dataScadenza` NON è stata letta dalla pagina ma è un
+   * fallback (vedi `buildMisuraGrezzaBase`) — mai impostarla a mano nei
+   * singoli parser: viene calcolata automaticamente in base alla presenza
+   * o meno di `dataScadenza` tra gli override passati.
+   */
+  scadenzaStimata?: boolean;
   atecoAmmessi?: string[];
   atecoEsclusi?: string[];
   regioniAmmesse?: string[];
