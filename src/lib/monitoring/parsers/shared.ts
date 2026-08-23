@@ -234,8 +234,17 @@ const FRASI_GENERICHE_ESCLUSE = new Set([
 
 const ESTENSIONI_FILE_DIRETTO = /\.(pdf|jpg|jpeg|png|zip|rar|doc|docx|xls|xlsx)(\?.*)?$/i;
 
-/** Segnale positivo, ma solo corroborante (mai sufficiente da solo — vedi sotto): il link punta a un percorso tipico di sezione bandi/avvisi. */
-const PERCORSO_BANDO = /\/(bandi|bando|avvisi|avviso|contributi|incentivi|agevolazioni|finanziamenti)\//i;
+/**
+ * Segnale positivo, ma solo corroborante (mai sufficiente da solo — vedi
+ * sotto): il link punta a un percorso tipico di sezione bandi/avvisi.
+ * Ammette anche un suffisso dopo la parola chiave nello stesso segmento di
+ * URL (es. "incentivi-e-strumenti", non solo "incentivi" esatto): trovato
+ * su invitalia.it, dove le pagine di dettaglio vivono sotto
+ * `/incentivi-e-strumenti/nome-misura` — con il solo match esatto
+ * `/incentivi/` questo segnale non scattava mai per nessun link Invitalia,
+ * reale o no.
+ */
+const PERCORSO_BANDO = /\/(bandi|bando|avvisi|avviso|contributi|incentivi|agevolazioni|finanziamenti)[a-z-]*\//i;
 
 /**
  * Normalizza un titolo per il confronto con FRASI_GENERICHE_ESCLUSE:
@@ -328,6 +337,29 @@ export function punteggioVoceBando(titolo: string, href: string, contesto = ""):
  */
 export const SOGLIA_VOCE_BANDO = 3;
 
+/**
+ * Soglia più permissiva per i candidati trovati tramite un selettore CSS
+ * "calibrato" — verificato a mano contro l'HTML reale del sito (vedi i
+ * commenti nei singoli parser di fonte, es. invitalia.ts), che da solo
+ * identifica già in modo specifico una card di misura (una classe come
+ * `.card-unified__title` o un pattern di URL come `/incentivi-e-strumenti/`
+ * calibrato sul vero sito). In questo caso "questo È una card di
+ * incentivo" non va dedotto dal testo: lo garantisce già la struttura del
+ * sito, verificata a mano. Restano validi il veto assoluto
+ * (FRASI_GENERICHE_ESCLUSE), la penalità di lunghezza titolo implausibile
+ * e la penalità delle parole escluse/estensioni file/link non-pagina: un
+ * titolo troppo corto o una "Privacy Policy" intercettata per sbaglio da
+ * un selettore troppo ampio vanno comunque scartati. Trovato analizzando
+ * una card reale (Invitalia, "Cultura Cresce") il cui titolo pulito non
+ * conteneva alcuna parola chiave/data/etichetta di stato nel testo visibile
+ * raccolto: con la soglia generica sarebbe stata scartata nonostante il
+ * selettore calibrato l'avesse già trovata correttamente. -3 lascia
+ * passare un titolo valido senza altri segnali (punteggio 0) ma continua a
+ * scartare un titolo di lunghezza implausibile (-6) o qualunque match su
+ * una parola esclusa (-12) o un link non-pagina (-8/-20).
+ */
+export const SOGLIA_VOCE_BANDO_CALIBRATA = -3;
+
 // Intestazioni vere (h1-h6, o classi esplicite "titolo"/"title"): segnale
 // quasi inequivocabile, preferite SEMPRE al testo del link quando presenti
 // nel contenitore — indipendentemente dal punteggio. strong/b sono un
@@ -384,6 +416,50 @@ function estraiTitoloEffettivo(
 }
 
 /**
+ * Trova il contenitore vero di una card/riga di lista intorno a un link,
+ * da cui leggere il contesto completo (testoCompleto: data/importo/stato/
+ * descrizione) e recuperare il titolo vero quando il link è solo una CTA.
+ *
+ * Prova prima i tag/classi tipici di lista (li/article/tr/.card/.item/
+ * .news-item/.box). Molti siti istituzionali però non usano NESSUno di
+ * questi per il wrapper della card — solo <div> generici, col titolo in
+ * un'intestazione (h2/h3) e la descrizione/data in un <p> FRATELLO
+ * dell'intestazione, non discendente: fermarsi al genitore diretto del
+ * link (che spesso è proprio quell'intestazione) prende solo il titolo e
+ * perde tutto il resto. Trovato su mimit.gov.it: un link dentro un `<h2>`
+ * con la descrizione+data nel `<p>` immediatamente successivo, fuori dal
+ * `<h2>` — con `$link.parent()` il contesto letto era identico al solo
+ * titolo, quindi la card non aveva mai i segnali (data/parola chiave) che
+ * il punteggio richiede, pur essendo un incentivo reale.
+ *
+ * Fallback: risale i genitori (fino a un tetto di livelli, per non
+ * arrivare a un contenitore enorme con più card mischiate insieme) e si
+ * ferma al primo che aggiunge testo sostanziale rispetto al solo link —
+ * cioè probabilmente include anche la descrizione/data che il genitore
+ * diretto non conteneva.
+ */
+function trovaContenitoreVoce($link: cheerio.Cheerio<any>): cheerio.Cheerio<any> {
+  const $diretto = $link.closest("li, article, tr, .card, .item, .news-item, .box");
+  if ($diretto.length) return $diretto;
+
+  const testoLink = testoPulito($link);
+  const MASSIMO_LIVELLI = 4;
+  const CRESCITA_MINIMA = 20;
+  const TETTO_CARATTERI = 2000;
+
+  let $corrente = $link.parent();
+  for (let livello = 0; livello < MASSIMO_LIVELLI && $corrente.length; livello++) {
+    const testoCorrente = testoPulito($corrente);
+    if (testoCorrente.length >= testoLink.length + CRESCITA_MINIMA && testoCorrente.length <= TETTO_CARATTERI) {
+      return $corrente;
+    }
+    $corrente = $corrente.parent();
+  }
+
+  return $link.parent();
+}
+
+/**
  * Scansiona TUTTI i link della pagina e tiene solo quelli con punteggio
  * positivo — nessuna dipendenza da selettori CSS specifici del sito.
  */
@@ -403,8 +479,7 @@ function estraiVociListaEuristica($: cheerio.CheerioAPI, baseUrl: string, massim
     // contesto (testoCompleto, da cui si leggono data/importo/stato, e da
     // cui ora dipende anche il punteggio — vedi punteggioVoceBando) sia per
     // recuperare il vero titolo quando il link è solo una CTA generica.
-    const $contenitore = $link.closest("li, article, tr, .card, .item, .news-item, .box");
-    const $contenitoreEffettivo = $contenitore.length ? $contenitore : $link.parent();
+    const $contenitoreEffettivo = trovaContenitoreVoce($link);
     const testoCompleto = testoPulito($contenitoreEffettivo.length ? $contenitoreEffettivo : $link);
     const titolo = estraiTitoloEffettivo($contenitoreEffettivo, titoloLink, href, testoCompleto);
 
@@ -454,16 +529,26 @@ function estraiVociListaEuristica($: cheerio.CheerioAPI, baseUrl: string, massim
  *  3. Unisce tutti i risultati deduplicando per URL — così una fonte mai
  *     calibrata a mano continua comunque a restituire qualcosa, invece di
  *     tornare a mani vuote, ma senza rumore da link non pertinenti.
+ *
+ * `selettoriCalibrati` (facoltativo): selettori verificati a mano contro
+ * l'HTML reale del sito (vedi commenti nei singoli parser), che da soli
+ * identificano già in modo specifico una card di misura — valutati con la
+ * soglia più permissiva SOGLIA_VOCE_BANDO_CALIBRATA invece di
+ * SOGLIA_VOCE_BANDO (vedi il commento lì per il perché: un titolo reale
+ * ma "pulito", senza parole chiave/data nel testo raccolto, non deve
+ * essere scartato quando è già la struttura del sito — non il testo — a
+ * garantire che sia una card di incentivo).
  */
-export function estraiVociListaGenerico(
+function estraiCandidatiDaSelettori(
   $: cheerio.CheerioAPI,
   baseUrl: string,
-  selettoriCandidati: string[],
+  selettori: string[],
+  soglia: number,
 ): EstrazioneVoceLista[] {
-  const vociDaSelettori: EstrazioneVoceLista[] = [];
-  const visteSelettori = new Set<string>();
+  const trovati: EstrazioneVoceLista[] = [];
+  const viste = new Set<string>();
 
-  for (const selettore of selettoriCandidati) {
+  for (const selettore of selettori) {
     const nodi = $(selettore);
 
     nodi.each((_, el) => {
@@ -475,13 +560,9 @@ export function estraiVociListaGenerico(
       // Se il selettore punta direttamente al link (es. "a[href*='/bandi/']"),
       // $el COINCIDE col link: cercare un'intestazione dentro $el cercherebbe
       // dentro l'anchor stesso, che non ha figli di testo — serve risalire al
-      // contenitore vero (card/riga di lista) come nel percorso euristico.
-      const $contenitoreTitolo = $el.is("a")
-        ? (() => {
-            const $c = $el.closest("li, article, tr, .card, .item, .news-item, .box");
-            return $c.length ? $c : $el.parent();
-          })()
-        : $el;
+      // contenitore vero (card/riga di lista), stessa logica del percorso
+      // euristico (vedi trovaContenitoreVoce).
+      const $contenitoreTitolo = $el.is("a") ? trovaContenitoreVoce($el) : $el;
       // Il contesto (e testoCompleto salvato) viene dal contenitore vero,
       // non da $el: quando il selettore punta direttamente al link $el
       // coincide con l'anchor, il cui solo testo è spesso una CTA generica
@@ -492,23 +573,36 @@ export function estraiVociListaGenerico(
         url &&
         titolo &&
         titolo.length > 4 &&
-        !visteSelettori.has(url) &&
-        punteggioVoceBando(titolo, href, testoCompleto) >= SOGLIA_VOCE_BANDO
+        !viste.has(url) &&
+        punteggioVoceBando(titolo, href, testoCompleto) >= soglia
       ) {
-        visteSelettori.add(url);
-        vociDaSelettori.push({ linkDettaglio: url, titolo, testoCompleto });
+        viste.add(url);
+        trovati.push({ linkDettaglio: url, titolo, testoCompleto });
       }
     });
   }
 
+  return trovati;
+}
+
+export function estraiVociListaGenerico(
+  $: cheerio.CheerioAPI,
+  baseUrl: string,
+  selettoriCandidati: string[],
+  selettoriCalibrati: string[] = [],
+): EstrazioneVoceLista[] {
+  const vociCalibrate = estraiCandidatiDaSelettori($, baseUrl, selettoriCalibrati, SOGLIA_VOCE_BANDO_CALIBRATA);
+  const vociDaSelettori = estraiCandidatiDaSelettori($, baseUrl, selettoriCandidati, SOGLIA_VOCE_BANDO);
   const vociEuristiche = estraiVociListaEuristica($, baseUrl);
 
-  const viste = new Set(vociDaSelettori.map((v) => v.linkDettaglio));
-  const unite = [...vociDaSelettori];
-  for (const v of vociEuristiche) {
-    if (!viste.has(v.linkDettaglio)) {
-      viste.add(v.linkDettaglio);
-      unite.push(v);
+  const viste = new Set<string>();
+  const unite: EstrazioneVoceLista[] = [];
+  for (const gruppo of [vociCalibrate, vociDaSelettori, vociEuristiche]) {
+    for (const v of gruppo) {
+      if (!viste.has(v.linkDettaglio)) {
+        viste.add(v.linkDettaglio);
+        unite.push(v);
+      }
     }
   }
 

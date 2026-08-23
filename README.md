@@ -278,6 +278,51 @@ sporca "passa" da sola grazie alla card intorno — il recupero del
 titolo vero da un'intestazione non può più dipendere dal punteggio per
 decidere se attivarsi, altrimenti non scatterebbe mai.
 
+Questo fix ha subito riportato una delle due fonti Invitalia da 1 a 15
+misure trovate. Le altre due fonti rimaste bloccate a 1 (l'altra sezione
+Invitalia, "per chi vuole fare impresa", e MIMIT) hanno rivelato — con
+altro HTML reale mandato dal team — **due bug diversi**, non risolti dal
+fix sopra:
+
+1. **Selettori calibrati comunque bocciati dalla soglia generica.** Una
+   card Invitalia reale ("Cultura Cresce") ha un titolo pulito, una
+   descrizione breve e nessuna parola chiave/data/etichetta di stato nel
+   testo raccolto: pur essendo intercettata da un selettore verificato a
+   mano (`.card-unified__title`), il punteggio testuale da solo restava
+   sotto soglia. Soluzione: `estraiVociListaGenerico` ora accetta un
+   secondo elenco di selettori "calibrati" (verificati contro HTML reale
+   del sito), valutati con una soglia molto più permissiva
+   (`SOGLIA_VOCE_BANDO_CALIBRATA`, vedi shared.ts) — qui non serve dedurre
+   dal testo che sia una card di incentivo, lo garantisce già la
+   struttura del sito. Restano validi il veto assoluto sulle frasi
+   generiche e la penalità sulle parole escluse/link non-pagina, quindi
+   una "Privacy Policy" intercettata per errore da un selettore troppo
+   ampio continua a essere scartata.
+2. **Il contesto letto era identico al solo titolo, su siti con wrapper
+   generici.** Su mimit.gov.it il link di ogni misura sta in un `<h2>`,
+   ma la descrizione e la data stanno in un `<p>` **fratello**
+   dell'`<h2>`, non al suo interno — e il sito non usa nessuna delle
+   classi/tag tipici di card (`li`, `article`, `.card`, `.item`...) su
+   cui si basava la ricerca del contenitore. Il contesto raccolto era
+   quindi identico al solo testo del titolo, la card non aveva mai i
+   segnali che il punteggio richiede pur essendo un incentivo vero.
+   Soluzione: nuova `trovaContenitoreVoce` in shared.ts, che quando non
+   trova nessuno dei tag/classi noti risale i genitori (fino a un tetto
+   di livelli e di caratteri, per non finire per sbaglio su un
+   contenitore con più card mischiate insieme) finché il testo non
+   cresce in modo sostanziale rispetto al solo link.
+
+Corretti anche, nello stesso giro: `PERCORSO_BANDO` non riconosceva
+`/incentivi-e-strumenti/` (Invitalia) perché richiedeva il segmento di URL
+esatto `/incentivi/`; il selettore MIMIT aveva un refuso singolare/plurale
+(`/incentivo` invece di `/incentivi/`) che non intercettava mai nessun
+link reale. Verificato con un test sintetico basato sull'HTML reale di
+entrambi i siti (comprese due card Invitalia aggiuntive con titolo pulito
+e zero segnali testuali, per riprodurre esattamente il caso che sfuggiva),
+più un negative control (link di navigazione/privacy/cookie nello stesso
+contenitore "largo") per assicurarsi che il fix non abbia semplicemente
+allargato la maglia del filtro.
+
 ## Stack
 
 Next.js 14 (App Router) · TypeScript · Prisma + PostgreSQL · NextAuth
