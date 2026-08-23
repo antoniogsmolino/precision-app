@@ -13,6 +13,7 @@ import {
   parsePercentuale,
   cheerio,
 } from "./shared";
+import { filtraCandidatiConAI } from "../classificatore";
 import type { ParserFonte } from "../types";
 
 const SELETTORI_VOCE = [
@@ -23,9 +24,10 @@ const SELETTORI_VOCE = [
   "main a[href]",
 ];
 
-export const parserUnioncamerePid: ParserFonte = (html, contestoUrl) => {
+export const parserUnioncamerePid: ParserFonte = async (html, contestoUrl) => {
   const $ = cheerio.load(html);
-  const voci = estraiVociListaGenerico($, contestoUrl, SELETTORI_VOCE);
+  const vociCandidate = estraiVociListaGenerico($, contestoUrl, SELETTORI_VOCE);
+  const voci = await filtraCandidatiConAI(vociCandidate);
 
   const misure = voci.map((voce) => {
     const scadenzaMatch = voce.testoCompleto.match(/(?:scadenza|entro il)[^\d]{0,15}([\d]{1,2}[/\-.][\d]{1,2}[/\-.][\d]{4}|\d{1,2}\s+\w+\s+\d{4})/i);

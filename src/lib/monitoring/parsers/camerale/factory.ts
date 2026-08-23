@@ -13,6 +13,7 @@ import {
   parseImportoEuro,
   cheerio,
 } from "../shared";
+import { filtraCandidatiConAI } from "../../classificatore";
 import type { ParserFonte } from "../../types";
 
 const SELETTORI_VOCE_DEFAULT = [
@@ -33,9 +34,10 @@ export interface ConfigParserCamerale {
 export function creaParserCameraleGenerico(config: ConfigParserCamerale): ParserFonte {
   const selettori = config.selettoriVoce ?? SELETTORI_VOCE_DEFAULT;
 
-  return (html, contestoUrl) => {
+  return async (html, contestoUrl) => {
     const $ = cheerio.load(html);
-    const voci = estraiVociListaGenerico($, contestoUrl, selettori);
+    const vociCandidate = estraiVociListaGenerico($, contestoUrl, selettori);
+    const voci = await filtraCandidatiConAI(vociCandidate);
 
     const misure = voci.map((voce) => {
       const scadenzaMatch = voce.testoCompleto.match(

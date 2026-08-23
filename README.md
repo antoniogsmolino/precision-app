@@ -4,9 +4,11 @@ Radar interno per il team MOLO su bandi, incentivi e finanza agevolata, più
 (dalla Fase 3) un frontend pubblico di lead generation collegato allo stesso
 motore di matching.
 
-Nessuna chiamata AI/LLM in nessun punto: il matching prospect↔misura è un
-motore a regole (confronto di campi strutturati), a costo zero. **Il
-matching è sempre indicativo, mai una garanzia di ammissione.**
+Il matching prospect↔misura resta sempre un motore a regole (confronto di
+campi strutturati), zero chiamate AI/LLM — **è sempre indicativo, mai una
+garanzia di ammissione.** L'unico punto che usa un giudizio automatico
+(Claude, opzionale) è il monitoraggio delle fonti, come secondo filtro
+dopo quello a regole — vedi "Filtro di rilevanza AI" più sotto.
 
 ### Design system
 
@@ -163,10 +165,33 @@ ma non trovano misure utili vanno quasi sempre migliorate aggiungendo
 selettori CSS specifici in `selettoriVoce` (vedi le factory) una volta
 ispezionato l'HTML reale della pagina bandi.
 
+### Filtro di rilevanza AI (secondo gate, dopo quello a regole)
+
+Il filtro a parole chiave/regex (`punteggioVoceBando` in
+`src/lib/monitoring/parsers/shared.ts`) non può distinguere per
+significato: "bando", "avviso", "domande" compaiono anche in notizie,
+comitati, eventi che non sono misure di finanza agevolata — ogni nuovo
+caso limite segnalato dal team è stato corretto, ma con un motore
+puramente a regole su 46 siti eterogenei nuovi casi possono sempre
+ricomparire. Per questo `src/lib/monitoring/classificatore.ts` aggiunge
+un secondo filtro: ogni voce già passata dal filtro a regole viene
+sottoposta a un giudizio di Claude (un lotto per fonte scansionata, non
+una chiamata per voce) prima di essere scritta come Misura.
+
+**Da configurare**: serve la variabile d'ambiente `ANTHROPIC_API_KEY`
+(Vercel → Settings → Environment Variables) — senza quella il filtro è
+disattivato in modo trasparente (fail-open: nessun errore, si passa
+solo dal filtro a regole, esattamente come oggi). Anche con la chiave
+configurata, qualunque errore della chiamata (rete, timeout, risposta
+non interpretabile) fa passare quel lotto invariato invece di bloccare
+lo scan: la priorità resta non perdere mai una misura vera per un
+problema di questo secondo filtro.
+
 ## Stack
 
 Next.js 14 (App Router) · TypeScript · Prisma + PostgreSQL · NextAuth
 (credentials) · Tailwind CSS · vis-timeline · papaparse · cheerio ·
+Claude API (filtro di rilevanza fonti, opzionale — vedi sopra) ·
 Resend (predisposto, usato dalla Fase 3 in poi)
 
 ## Setup locale

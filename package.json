@@ -16,6 +16,7 @@
     "scan:sources": "tsx src/scripts/run-scan.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.120.0",
     "@prisma/client": "^5.22.0",
     "bcryptjs": "^2.4.3",
     "cheerio": "^1.0.0",

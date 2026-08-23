@@ -18,6 +18,7 @@ import {
   parseImportoEuro,
   cheerio,
 } from "./shared";
+import { filtraCandidatiConAI } from "../classificatore";
 import type { ParserFonte } from "../types";
 
 const SELETTORI_VOCE = [
@@ -29,9 +30,10 @@ const SELETTORI_VOCE = [
   "main article a[href]",
 ];
 
-export const parserIncentiviGovIt: ParserFonte = (html, contestoUrl) => {
+export const parserIncentiviGovIt: ParserFonte = async (html, contestoUrl) => {
   const $ = cheerio.load(html);
-  const voci = estraiVociListaGenerico($, contestoUrl, SELETTORI_VOCE);
+  const vociCandidate = estraiVociListaGenerico($, contestoUrl, SELETTORI_VOCE);
+  const voci = await filtraCandidatiConAI(vociCandidate);
 
   const misure = voci.map((voce) => {
     const scadenzaMatch = voce.testoCompleto.match(/(?:scadenza|entro il|termine)[^\d]{0,15}([\d]{1,2}[/\-.][\d]{1,2}[/\-.][\d]{4}|\d{1,2}\s+\w+\s+\d{4})/i);
