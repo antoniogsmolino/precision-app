@@ -43,6 +43,8 @@ function costruisciPrompt(candidati: EstrazioneVoceLista[]): string {
 
 NON sono misure: articoli di cronaca o di blog, link di navigazione o CTA generiche, titoli di pagine indice/categoria, notizie su comitati/selezione di personale/eventi/servizi non finanziari, borse di studio o assegni di ricerca per individui, esiti di selezioni già chiuse (graduatorie approvate) presentati come notizia.
 
+Il costo di un errore non è simmetrico: una misura inclusa per errore si scarta in un attimo dal team, una misura VERA scartata per errore invece sparisce e basta. In caso di dubbio reale (il titolo è plausibile ma il contesto è troppo corto per esserne certi), rispondi true.
+
 ${elenco}
 
 Rispondi SOLO con un array JSON di ${candidati.length} valori booleani, nello stesso ordine dell'elenco (true = misura reale da tenere, false = da scartare). Nessun testo prima o dopo l'array.`;

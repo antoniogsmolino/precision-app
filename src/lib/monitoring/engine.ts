@@ -3,6 +3,7 @@ import { risolviParser } from "./parsers/registry";
 import { verificaRobotsTxt } from "./robots";
 import { hashContenuto } from "./parsers/shared";
 import { HEADERS_FETCH, messaggioErroreFetch } from "./http";
+import { arricchisciConDettaglio } from "./dettaglio";
 import { ricalcolaMatchPerMisura } from "@/lib/matching/engine";
 import type { MisuraGrezza } from "./types";
 import type { Fonte } from "@prisma/client";
@@ -22,9 +23,11 @@ export interface EsitoScanFonte {
 
 function campiRilevantiUguali(a: MisuraGrezza, esistente: {
   titolo: string; dataApertura: Date; dataScadenza: Date; scadenzaStimata: boolean;
-  tipoAgevolazione: string; tipoValore: string;
+  tipoAgevolazione: string; tipoValore: string; descrizioneEstesa: string; altriRequisiti: string | null;
   importoFisso: unknown; importoMin: unknown; importoMax: unknown; percentuale: unknown; tettoMassimo: unknown;
+  atecoAmmessi: string[]; atecoEsclusi: string[]; regioniAmmesse: string[]; documentiRichiesti: string[];
 }): boolean {
+  const arrayUguale = (a: string[], b: string[]) => a.length === b.length && a.every((v, i) => v === b[i]);
   return (
     a.titolo === esistente.titolo &&
     a.dataApertura.getTime() === new Date(esistente.dataApertura).getTime() &&
@@ -36,7 +39,18 @@ function campiRilevantiUguali(a: MisuraGrezza, esistente: {
     (a.importoMin ?? null) === (esistente.importoMin == null ? null : Number(esistente.importoMin)) &&
     (a.importoMax ?? null) === (esistente.importoMax == null ? null : Number(esistente.importoMax)) &&
     (a.percentuale ?? null) === (esistente.percentuale == null ? null : Number(esistente.percentuale)) &&
-    (a.tettoMassimo ?? null) === (esistente.tettoMassimo == null ? null : Number(esistente.tettoMassimo))
+    (a.tettoMassimo ?? null) === (esistente.tettoMassimo == null ? null : Number(esistente.tettoMassimo)) &&
+    // Confronta anche i campi arricchiti dalla pagina di dettaglio: senza
+    // questo, una misura creata PRIMA dell'arricchimento (solo dati dalla
+    // pagina elenco) non veniva mai aggiornata con i dati ricchi trovati
+    // da una scansione successiva, perché nessuno dei campi sopra
+    // cambiava — restava per sempre con la scheda vuota.
+    (a.descrizioneEstesa ?? a.descrizioneBreve) === esistente.descrizioneEstesa &&
+    (a.altriRequisiti ?? null) === esistente.altriRequisiti &&
+    arrayUguale(a.atecoAmmessi ?? [], esistente.atecoAmmessi) &&
+    arrayUguale(a.atecoEsclusi ?? [], esistente.atecoEsclusi) &&
+    arrayUguale(a.regioniAmmesse ?? [], esistente.regioniAmmesse) &&
+    arrayUguale(a.documentiRichiesti ?? [], esistente.documentiRichiesti)
   );
 }
 
@@ -91,10 +105,23 @@ export async function scanFonte(fonteId: string, opts: { forza?: boolean } = {})
     let nuove = 0;
     let aggiornate = 0;
 
-    for (const grezza of misure) {
+    for (const grezzaBase of misure) {
       const esistente = await prisma.misura.findUnique({
-        where: { fonteId_externalId: { fonteId: fonte.id, externalId: grezza.externalId } },
+        where: { fonteId_externalId: { fonteId: fonte.id, externalId: grezzaBase.externalId } },
       });
+
+      // Arricchimento dalla pagina di DETTAGLIO (importo, scadenza, ATECO,
+      // fatturato, dipendenti, documenti — la pagina elenco non li ha quasi
+      // mai): salta la visita se la misura esiste già e risulta già
+      // arricchita (non serve rifetchare ogni giorno un dettaglio che non
+      // cambia), altrimenti scan molto più lente su fonti con tante voci.
+      // "Già arricchita" = ha una descrizione estesa diversa dal solo
+      // titolo/breve E almeno un requisito in più oltre ai dati minimi.
+      const giaArricchita =
+        esistente &&
+        esistente.descrizioneEstesa !== esistente.descrizioneBreve &&
+        (esistente.altriRequisiti || esistente.documentiRichiesti.length > 0 || esistente.atecoAmmessi.length > 0);
+      const grezza = giaArricchita ? grezzaBase : await arricchisciConDettaglio(grezzaBase);
 
       if (!esistente) {
         const creata = await prisma.misura.create({
@@ -136,6 +163,7 @@ export async function scanFonte(fonteId: string, opts: { forza?: boolean } = {})
           where: { id: esistente.id },
           data: {
             titolo: grezza.titolo,
+            descrizioneEstesa: grezza.descrizioneEstesa ?? grezza.descrizioneBreve,
             dataApertura: grezza.dataApertura,
             dataScadenza: grezza.dataScadenza,
             scadenzaStimata: grezza.scadenzaStimata ?? false,
@@ -146,6 +174,15 @@ export async function scanFonte(fonteId: string, opts: { forza?: boolean } = {})
             importoMax: grezza.importoMax ?? null,
             percentuale: grezza.percentuale ?? null,
             tettoMassimo: grezza.tettoMassimo ?? null,
+            atecoAmmessi: grezza.atecoAmmessi ?? [],
+            atecoEsclusi: grezza.atecoEsclusi ?? [],
+            regioniAmmesse: grezza.regioniAmmesse ?? [],
+            fatturatoMin: grezza.fatturatoMin ?? null,
+            fatturatoMax: grezza.fatturatoMax ?? null,
+            dipendentiMin: grezza.dipendentiMin ?? null,
+            dipendentiMax: grezza.dipendentiMax ?? null,
+            altriRequisiti: grezza.altriRequisiti ?? null,
+            documentiRichiesti: grezza.documentiRichiesti ?? [],
           },
         });
         aggiornate += 1;

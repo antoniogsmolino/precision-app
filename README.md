@@ -212,6 +212,50 @@ del team) — corretto e verificato con un test che simula esattamente
 questo scenario (fonte già esistente con URL vecchio, reseed, URL
 aggiornato davvero).
 
+### Arricchimento dalla pagina di dettaglio (`src/lib/monitoring/dettaglio.ts`)
+
+La pagina elenco di una fonte dà solo titolo e poco contesto — importo,
+scadenza vera, ATECO, fatturato, dipendenti, documenti richiesti sono
+quasi sempre scritti solo nella pagina di **dettaglio** del singolo
+bando. Senza questi campi il motore di matching non ha nulla su cui
+confrontare i prospect (schede come "Importo non specificato — Scadenza
+non nota" su ogni misura). Ora, per ogni misura non ancora arricchita, il
+motore visita anche la sua pagina di dettaglio (`linkFonteUfficiale`) e
+ne estrae i requisiti — due livelli, corroboranti:
+
+1. Le stesse regex di scadenza/importo usate sulla pagina elenco,
+   riapplicate al testo — molto più ricco — della pagina di dettaglio.
+   Non richiede AI.
+2. Se `ANTHROPIC_API_KEY` è configurata, un'estrazione strutturata più
+   ricca (ATECO, fatturato, dipendenti, documenti, descrizione estesa)
+   che le regex non possono fare in modo affidabile su HTML così
+   eterogeneo — mai valori inventati, solo quello scritto esplicitamente
+   nella pagina.
+
+Le misure già arricchite (hanno già una descrizione estesa e almeno un
+requisito) non vengono rivisitate ad ogni scan, solo quelle nuove o mai
+arricchite — ma questo comunque **allunga sensibilmente la durata di uno
+scan** su una fonte con molte voci nuove (una richiesta HTTP in più per
+ogni voce, non solo una per fonte). Accettato esplicitamente: meglio uno
+scan più lento con dati veri che uno rapido con schede vuote.
+
+### Bug reale trovato e corretto: la ricerca si fermava al primo selettore
+
+`estraiVociListaGenerico` provava i selettori CSS candidati in ordine e
+si fermava al **primo** che trovava almeno un risultato, scartando ogni
+selettore successivo anche se più specifico e corretto — se un selettore
+generico all'inizio dell'elenco intercettava per caso un solo link fuori
+tema (es. un "Bando di gara" per forniture d'ufficio, non un incentivo),
+la ricerca si fermava lì, perdendo le decine di voci vere che un
+selettore più avanti avrebbe trovato. Ora prova **tutti** i selettori e
+unisce i risultati. Trovato anche un bug di normalizzazione (gli accenti
+non venivano rimossi in modo coerente, quindi "più" non coincideva mai
+con "piu" nell'elenco delle frasi generiche da escludere) che faceva
+fallire il riconoscimento di CTA molto comuni ("Scopri di più", "Leggi di
+più...") — il recupero del titolo vero da un'intestazione vicina ora è
+basato sul punteggio di rilevanza invece che su un elenco fisso di frasi,
+quindi funziona anche per CTA mai previste in anticipo.
+
 ## Stack
 
 Next.js 14 (App Router) · TypeScript · Prisma + PostgreSQL · NextAuth

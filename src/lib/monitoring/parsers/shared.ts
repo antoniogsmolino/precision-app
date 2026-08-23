@@ -248,6 +248,14 @@ function normalizzaTitolo(titolo: string): string {
   return titolo
     .toLowerCase()
     .replace(/['’]/g, "")
+    // Rimuove gli accenti (NFD scompone "più" in "piu" + accento
+    // combinante, poi il replace toglie il carattere combinante) — senza
+    // questo "più"/"cosi"/"perché" non coincidevano MAI con le voci senza
+    // accento elencate in FRASI_GENERICHE_ESCLUSE: bug reale, trovato
+    // perché faceva fallire il riconoscimento di CTA molto comuni come
+    // "Scopri di più".
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
     .replace(/[^\p{L}\p{N}\s]/gu, " ")
     .replace(/\s+/g, " ")
     .trim();
@@ -309,12 +317,23 @@ const SELETTORI_TITOLO_ALTERNATIVO = "h1, h2, h3, h4, h5, strong, b, .titolo, .t
 function estraiTitoloEffettivo(
   $contenitore: cheerio.Cheerio<any>,
   titoloLink: string,
+  href: string,
 ): string {
-  const eGenerico = FRASI_GENERICHE_ESCLUSE.has(normalizzaTitolo(titoloLink)) || titoloLink.length < 12;
-  if (!eGenerico || !$contenitore.length) return titoloLink;
+  // Basato sul punteggio, non su un elenco fisso di CTA note + una soglia
+  // di lunghezza arbitraria: quell'approccio si è dimostrato fragile su
+  // fonti reali (una CTA mai prevista prima, es. "Vai al bando", "Info",
+  // "Dettagli", scivolava indenne). Qui invece si tenta SEMPRE il recupero
+  // quando il testo del link da solo non basterebbe a passare il filtro
+  // di rilevanza, e si usa l'alternativa solo se punteggia meglio —
+  // funziona per qualunque CTA, prevista o no, senza dover elencarle tutte.
+  const punteggioLink = punteggioVoceBando(titoloLink, href);
+  if (punteggioLink >= SOGLIA_VOCE_BANDO || !$contenitore.length) return titoloLink;
 
   const titoloAlternativo = testoPulito($contenitore.find(SELETTORI_TITOLO_ALTERNATIVO).first());
-  return titoloAlternativo && titoloAlternativo.length > titoloLink.length ? titoloAlternativo : titoloLink;
+  if (!titoloAlternativo) return titoloLink;
+
+  const punteggioAlternativo = punteggioVoceBando(titoloAlternativo, href);
+  return punteggioAlternativo > punteggioLink ? titoloAlternativo : titoloLink;
 }
 
 /**
@@ -338,7 +357,7 @@ function estraiVociListaEuristica($: cheerio.CheerioAPI, baseUrl: string, massim
     // recuperare il vero titolo quando il link è solo una CTA generica.
     const $contenitore = $link.closest("li, article, tr, .card, .item, .news-item, .box");
     const $contenitoreEffettivo = $contenitore.length ? $contenitore : $link.parent();
-    const titolo = estraiTitoloEffettivo($contenitoreEffettivo, titoloLink);
+    const titolo = estraiTitoloEffettivo($contenitoreEffettivo, titoloLink, href);
 
     const punti = punteggioVoceBando(titolo, href);
     if (punti < SOGLIA_VOCE_BANDO) return;
@@ -373,13 +392,19 @@ function estraiVociListaEuristica($: cheerio.CheerioAPI, baseUrl: string, massim
  * quindi un gate unico, indipendente da quale dei due percorsi ha trovato
  * il link:
  *
- *  1. Prova i selettori CSS candidati (dal più specifico al più generico) —
- *     quando azzeccati danno il segnale più pulito (titolo + contenitore
- *     corretti) — ma tiene solo i link che superano la soglia di rilevanza.
+ *  1. Prova TUTTI i selettori CSS candidati — non si ferma al primo che
+ *     trova almeno un risultato: un selettore poco specifico messo prima
+ *     nell'elenco che intercetta per caso un solo link irrilevante (es.
+ *     un breadcrumb) fermava la ricerca lì, ignorando selettori più
+ *     avanti nell'elenco che avrebbero trovato la vera lista di decine di
+ *     voci — bug reale, trovato su fonti che rilevavano una sola misura
+ *     nonostante la pagina reale ne contenesse molte di più. Ogni
+ *     selettore che trova risultati contribuisce, tiene solo i link che
+ *     superano la soglia di rilevanza.
  *  2. Esegue SEMPRE anche la scansione euristica su tutti i link della
  *     pagina (vedi estraiVociListaEuristica), che non dipende dalla
  *     struttura HTML del sito e applica lo stesso filtro.
- *  3. Unisce i risultati deduplicando per URL — così una fonte mai
+ *  3. Unisce tutti i risultati deduplicando per URL — così una fonte mai
  *     calibrata a mano continua comunque a restituire qualcosa, invece di
  *     tornare a mani vuote, ma senza rumore da link non pertinenti.
  */
@@ -387,13 +412,12 @@ export function estraiVociListaGenerico(
   $: cheerio.CheerioAPI,
   baseUrl: string,
   selettoriCandidati: string[],
-  minVociAttese = 1,
 ): EstrazioneVoceLista[] {
-  let vociDaSelettori: EstrazioneVoceLista[] = [];
+  const vociDaSelettori: EstrazioneVoceLista[] = [];
+  const visteSelettori = new Set<string>();
 
   for (const selettore of selettoriCandidati) {
     const nodi = $(selettore);
-    const voci: EstrazioneVoceLista[] = [];
 
     nodi.each((_, el) => {
       const $el = $(el);
@@ -411,16 +435,18 @@ export function estraiVociListaGenerico(
             return $c.length ? $c : $el.parent();
           })()
         : $el;
-      const titolo = estraiTitoloEffettivo($contenitoreTitolo, titoloLink);
-      if (url && titolo && titolo.length > 4 && punteggioVoceBando(titolo, href) >= SOGLIA_VOCE_BANDO) {
-        voci.push({ linkDettaglio: url, titolo, testoCompleto: testoPulito($el) });
+      const titolo = estraiTitoloEffettivo($contenitoreTitolo, titoloLink, href);
+      if (
+        url &&
+        titolo &&
+        titolo.length > 4 &&
+        !visteSelettori.has(url) &&
+        punteggioVoceBando(titolo, href) >= SOGLIA_VOCE_BANDO
+      ) {
+        visteSelettori.add(url);
+        vociDaSelettori.push({ linkDettaglio: url, titolo, testoCompleto: testoPulito($el) });
       }
     });
-
-    if (voci.length >= minVociAttese) {
-      vociDaSelettori = voci;
-      break;
-    }
   }
 
   const vociEuristiche = estraiVociListaEuristica($, baseUrl);
