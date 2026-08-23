@@ -191,6 +191,27 @@ non interpretabile) fa passare quel lotto invariato invece di bloccare
 lo scan: la priorità resta non perdere mai una misura vera per un
 problema di questo secondo filtro.
 
+### Correzione URL fonti + bug reale nel reseed (47 fonti)
+
+Il team ha verificato a mano gli URL reali di Invitalia e SIMEST (questo
+ambiente di sviluppo non ha accesso alla rete pubblica per farlo da qui —
+vedi sopra): quelli usati finora puntavano a pagine istituzionali
+generiche senza elenco bandi, non alle sezioni incentivi vere. Corretti,
+e aggiunta una seconda fonte Invitalia (il sito ha due sezioni elenco
+distinte: "per le imprese" e "per chi vuole fare impresa") — **47 fonti**
+totali.
+
+Nel farlo, trovato un bug più a monte: `eseguiSeed` faceva l'upsert delle
+fonti con `update: {}` — rilanciare il seed dopo aver corretto un URL nel
+codice non aggiornava MAI la riga già esistente in produzione, solo le
+fonti nuove. Ogni correzione di URL fatta finora rischiava di non
+arrivare mai a chi aveva già girato il seed una volta. Ora l'upsert
+aggiorna sempre nome/url/livello/regione dal codice (mai i campi
+operativi come `attiva` o lo stato di scansione, quelli restano lavoro
+del team) — corretto e verificato con un test che simula esattamente
+questo scenario (fonte già esistente con URL vecchio, reseed, URL
+aggiornato davvero).
+
 ## Stack
 
 Next.js 14 (App Router) · TypeScript · Prisma + PostgreSQL · NextAuth

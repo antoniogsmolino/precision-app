@@ -26,6 +26,10 @@ import { PARSER_CAMERALI } from "./camerale/registro";
 export const REGISTRO_PARSER: Record<string, ParserFonte> = {
   "incentivi-gov-it": parserIncentiviGovIt,
   invitalia: parserInvitalia,
+  // Stesso parser di "invitalia" (generico, non dipende da un URL fisso):
+  // due fonti perché il sito Invitalia ha due sezioni elenco distinte
+  // ("per le imprese" / "per chi vuole fare impresa"), vedi seed.ts.
+  "invitalia-avvio-impresa": parserInvitalia,
   "unioncamere-pid": parserUnioncamerePid,
   simest: parserSimest,
   "cciaa-sud-est-sicilia": parserCciaaSudEstSicilia,

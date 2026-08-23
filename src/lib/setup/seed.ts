@@ -4,6 +4,14 @@ import { ricalcolaTuttiIMatch } from "@/lib/matching/engine";
 import { REGIONI } from "@/lib/monitoring/parsers/regionale/config";
 import { CAMERE_DI_COMMERCIO } from "@/lib/monitoring/parsers/camerale/config";
 
+interface FonteSeed {
+  nome: string;
+  livello: "L1_NAZIONALE" | "L2_REGIONALE" | "L3_CAMERALE";
+  regione?: string;
+  url: string;
+  parserKey: string;
+}
+
 /**
  * Logica di seed condivisa tra `prisma/seed.ts` (CLI, `npm run seed`) e
  * l'endpoint `/api/setup/seed` (per popolare un database di produzione
@@ -27,7 +35,7 @@ export async function eseguiSeed(prisma: PrismaClient) {
   log.push(`utente pronto: ${emailAdmin} (cambia la password dopo il primo accesso)`);
 
   // --- Fonti Fase 1 (Livello 1 nazionali + primo test camerale) -------
-  const fonti = [
+  const fonti: FonteSeed[] = [
     {
       nome: "incentivi.gov.it (MIMIT)",
       livello: "L1_NAZIONALE" as const,
@@ -35,10 +43,23 @@ export async function eseguiSeed(prisma: PrismaClient) {
       parserKey: "incentivi-gov-it",
     },
     {
-      nome: "Invitalia",
+      // URL corretto verificato manualmente dal team (quello precedente,
+      // /cosa-facciamo, è una pagina istituzionale generica senza elenco
+      // bandi) — vedi anche la seconda fonte Invitalia poco sotto.
+      nome: "Invitalia — Per le imprese",
       livello: "L1_NAZIONALE" as const,
-      url: "https://www.invitalia.it/cosa-facciamo",
+      url: "https://www.invitalia.it/per-le-imprese/incentivi-e-strumenti",
       parserKey: "invitalia",
+    },
+    {
+      // Sezione distinta del sito Invitalia (chi vuole avviare un'impresa,
+      // non solo imprese già esistenti) — stesso parser, URL diverso:
+      // entrambe le sezioni hanno elenchi di incentivi propri, si tengono
+      // separate per non perdere misure presenti solo in una delle due.
+      nome: "Invitalia — Per chi vuole fare impresa",
+      livello: "L1_NAZIONALE" as const,
+      url: "https://www.invitalia.it/per-chi-vuole-fare-impresa/incentivi-e-strumenti",
+      parserKey: "invitalia-avvio-impresa",
     },
     {
       nome: "Unioncamere — Punto Impresa Digitale",
@@ -47,9 +68,11 @@ export async function eseguiSeed(prisma: PrismaClient) {
       parserKey: "unioncamere-pid",
     },
     {
+      // URL corretto verificato manualmente dal team (quello precedente,
+      // /finanziamenti-agevolazioni, non è la pagina reale del sito).
       nome: "SIMEST",
       livello: "L1_NAZIONALE" as const,
-      url: "https://www.simest.it/finanziamenti-agevolazioni",
+      url: "https://www.simest.it/per-le-imprese/finanziamenti-agevolati",
       parserKey: "simest",
     },
     {
@@ -80,10 +103,20 @@ export async function eseguiSeed(prisma: PrismaClient) {
     })),
   ];
 
+  // update NON è {}: nome/url/regione/livello vanno risincronizzati dal
+  // codice ad ogni rilancio del seed, altrimenti una correzione di URL
+  // (es. un dominio sbagliato scoperto dal team) non arriva mai alle fonti
+  // già esistenti in produzione — solo alle nuove. Mai toccati invece i
+  // campi operativi (attiva, frequenzaOreScan, stato scansione): quelli
+  // restano sempre lavoro del team, mai sovrascritti da un reseed.
   for (const f of fonti) {
-    await prisma.fonte.upsert({ where: { parserKey: f.parserKey }, update: {}, create: f });
+    await prisma.fonte.upsert({
+      where: { parserKey: f.parserKey },
+      update: { nome: f.nome, url: f.url, livello: f.livello, regione: f.regione ?? null },
+      create: f,
+    });
   }
-  log.push(`${fonti.length} fonti pronte (in pausa finché non lanci il primo scan)`);
+  log.push(`${fonti.length} fonti pronte (nome/url risincronizzati dal codice se già esistenti)`);
 
   // --- Dati dimostrativi, utili per vedere subito la dashboard piena --
   const misureDemoCount = await prisma.misura.count({ where: { rilevataAutomaticamente: false } });
