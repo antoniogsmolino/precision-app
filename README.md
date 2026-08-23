@@ -256,6 +256,28 @@ più...") — il recupero del titolo vero da un'intestazione vicina ora è
 basato sul punteggio di rilevanza invece che su un elenco fisso di frasi,
 quindi funziona anche per CTA mai previste in anticipo.
 
+### Il punteggio ora considera anche il contesto della card, non solo il titolo
+
+Trovato analizzando HTML reale mandato dal team (una card Invitalia con
+zero misure rilevate nonostante 135 link nella pagina): il titolo di un
+incentivo è spesso un **nome proprio della misura** ("Fondo di contrasto
+alla deindustrializzazione 2026") senza nessuna delle parole chiave
+generiche cercate finora (niente "bando"/"avviso"/"incentivo" nel
+titolo) — da solo non avrebbe mai superato la soglia. Il resto della
+card però ha segnali fortissimi e specifici ("In apertura", "Data
+apertura: 28 settembre 2026", "Data chiusura: ...") che il motore non
+guardava. `punteggioVoceBando` ora valuta titolo + contesto della card
+insieme (nuovo bonus per le etichette di stato tipiche di un incentivo,
+e riconoscimento anche delle date testuali "28 settembre 2026", non solo
+di quelle numeriche) — verificato che un altro titolo-nome-proprio senza
+questi segnali di contesto (un evento culturale) resti correttamente
+escluso, per assicurarsi che il fix sia mirato e non abbia semplicemente
+allargato tutto. Aggiornato di conseguenza anche il recupero del titolo
+(vedi sopra): con il contesto che ora aiuta il punteggio, anche una CTA
+sporca "passa" da sola grazie alla card intorno — il recupero del
+titolo vero da un'intestazione non può più dipendere dal punteggio per
+decidere se attivarsi, altrimenti non scatterebbe mai.
+
 ## Stack
 
 Next.js 14 (App Router) · TypeScript · Prisma + PostgreSQL · NextAuth

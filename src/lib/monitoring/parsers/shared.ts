@@ -261,24 +261,53 @@ function normalizzaTitolo(titolo: string): string {
     .trim();
 }
 
-export function punteggioVoceBando(titolo: string, href: string): number {
+const MESI_REGEX = "gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre";
+/** Data numerica (28/09/2026) o testuale (28 settembre 2026). */
+const DATA_REGEX = new RegExp(`\\d{1,2}[/\\-.]\\d{1,2}[/\\-.]\\d{4}|\\d{1,2}\\s+(?:${MESI_REGEX})\\s+\\d{4}`, "i");
+
+/**
+ * Etichette di stato ed espressioni tipiche di una card di incentivo su
+ * un sito istituzionale — "In apertura", "Data chiusura", "candidature
+ * aperte"... Trovato analizzando una card REALE (Invitalia) con titolo
+ * "Fondo di contrasto alla deindustrializzazione 2026": il titolo di un
+ * incentivo è spesso un nome proprio della misura, senza nessuna delle
+ * parole chiave generiche (non contiene "bando"/"avviso"/"incentivo"),
+ * quindi da solo non avrebbe mai superato la soglia — ma il resto della
+ * card (stato, date di apertura/chiusura) è un segnale fortissimo e
+ * specifico che il titolo da solo non può dare.
+ */
+const ETICHETTE_STATO_INCENTIVO =
+  /\b(in apertura|in scadenza|in corso|attivo|attiva|aperto|aperta|chiuso|chiusa|candidature aperte|data apertura|data chiusura|data scadenza)\b/i;
+
+/**
+ * `contesto` (facoltativo) è il testo del contenitore della card, non solo
+ * del titolo/link — molti titoli reali sono nomi propri della misura senza
+ * alcuna parola chiave (vedi ETICHETTE_STATO_INCENTIVO sopra): scorporare
+ * i segnali forti (data, stato, parole chiave) sul solo titolo perdeva
+ * misure vere con un titolo "pulito". La soglia di lunghezza resta sul
+ * titolo da solo (un contesto lungo non deve mascherare un titolo troppo
+ * corto o troppo lungo per essere plausibile).
+ */
+export function punteggioVoceBando(titolo: string, href: string, contesto = ""): number {
   const t = titolo.toLowerCase();
+  const testoAllargato = `${t} ${contesto.toLowerCase()}`;
 
   if (FRASI_GENERICHE_ESCLUSE.has(normalizzaTitolo(titolo))) return -50;
 
   let punti = 0;
 
   if (t.length < 8 || t.length > 220) punti -= 6;
-  for (const parola of PAROLE_CHIAVE_BANDO) if (t.includes(parola)) punti += 3;
-  for (const parola of PAROLE_ESCLUSE) if (t.includes(parola)) punti -= 12;
+  for (const parola of PAROLE_CHIAVE_BANDO) if (testoAllargato.includes(parola)) punti += 3;
+  for (const parola of PAROLE_ESCLUSE) if (testoAllargato.includes(parola)) punti -= 12;
   // Corroborante ma non sufficiente da solo: 2 punti restano sotto soglia
   // (SOGLIA_VOCE_BANDO = 3) finché non si somma a un'altra parola chiave, a
   // una data o a un importo — un link generico che vive per caso sotto un
   // URL "/bandi/qualcosa" (es. un "leggi l'articolo" dentro quella sezione)
   // non deve passare per il solo fatto di trovarsi in quella cartella.
   if (PERCORSO_BANDO.test(href)) punti += 2;
-  if (/\d{1,2}[/\-.]\d{1,2}[/\-.]\d{4}/.test(t)) punti += 2; // data esplicita nel testo del link
-  if (/€|\beuro\b/.test(t)) punti += 1;
+  if (DATA_REGEX.test(testoAllargato)) punti += 2;
+  if (/€|\beuro\b/.test(testoAllargato)) punti += 1;
+  if (ETICHETTE_STATO_INCENTIVO.test(testoAllargato)) punti += 3;
   if (ESTENSIONI_FILE_DIRETTO.test(href)) punti -= 8; // link diretto a un file, non a una pagina di dettaglio
   if (href.startsWith("#") || href.startsWith("javascript:") || href.startsWith("mailto:") || href.startsWith("tel:")) {
     punti -= 20;
@@ -299,7 +328,14 @@ export function punteggioVoceBando(titolo: string, href: string): number {
  */
 export const SOGLIA_VOCE_BANDO = 3;
 
-const SELETTORI_TITOLO_ALTERNATIVO = "h1, h2, h3, h4, h5, strong, b, .titolo, .title";
+// Intestazioni vere (h1-h6, o classi esplicite "titolo"/"title"): segnale
+// quasi inequivocabile, preferite SEMPRE al testo del link quando presenti
+// nel contenitore — indipendentemente dal punteggio. strong/b sono un
+// segnale più debole (spesso usati anche per enfasi su "Scadenza:", non
+// solo sul titolo): usati solo come ripiego, mai al posto di un titolo del
+// link che da solo (senza il bonus del contesto) sarebbe già credibile.
+const SELETTORI_TITOLO_FORTE = "h1, h2, h3, h4, h5, h6, .titolo, .title";
+const SELETTORI_TITOLO_DEBOLE = "strong, b";
 
 /**
  * Il testo del link non è sempre il vero titolo della misura: molti siti
@@ -314,26 +350,37 @@ const SELETTORI_TITOLO_ALTERNATIVO = "h1, h2, h3, h4, h5, strong, b, .titolo, .t
  * quella al posto del testo del link — invece di scartare la voce o,
  * peggio, tenere la CTA come se fosse il titolo.
  */
+function titoloPlausibile(t: string): boolean {
+  return t.length >= 8 && t.length <= 220;
+}
+
 function estraiTitoloEffettivo(
   $contenitore: cheerio.Cheerio<any>,
   titoloLink: string,
   href: string,
+  contesto: string,
 ): string {
-  // Basato sul punteggio, non su un elenco fisso di CTA note + una soglia
-  // di lunghezza arbitraria: quell'approccio si è dimostrato fragile su
-  // fonti reali (una CTA mai prevista prima, es. "Vai al bando", "Info",
-  // "Dettagli", scivolava indenne). Qui invece si tenta SEMPRE il recupero
-  // quando il testo del link da solo non basterebbe a passare il filtro
-  // di rilevanza, e si usa l'alternativa solo se punteggia meglio —
-  // funziona per qualunque CTA, prevista o no, senza dover elencarle tutte.
-  const punteggioLink = punteggioVoceBando(titoloLink, href);
-  if (punteggioLink >= SOGLIA_VOCE_BANDO || !$contenitore.length) return titoloLink;
+  if (!$contenitore.length) return titoloLink;
 
-  const titoloAlternativo = testoPulito($contenitore.find(SELETTORI_TITOLO_ALTERNATIVO).first());
-  if (!titoloAlternativo) return titoloLink;
+  // Segnale forte (h1-h6, .titolo/.title): preferito SEMPRE al testo del
+  // link se presente e plausibile, indipendentemente dal punteggio — da
+  // quando il punteggio considera anche il contesto della card (vedi
+  // punteggioVoceBando), anche una CTA sporca come "Leggi tuttosu..."
+  // supera la soglia grazie al contesto, ma resta comunque un titolo
+  // sbagliato da mostrare: qui la scelta di QUALE testo usare come titolo
+  // è deliberatamente indipendente da quella soglia.
+  const titoloForte = testoPulito($contenitore.find(SELETTORI_TITOLO_FORTE).first());
+  if (titoloForte && titoloPlausibile(titoloForte)) return titoloForte;
 
-  const punteggioAlternativo = punteggioVoceBando(titoloAlternativo, href);
-  return punteggioAlternativo > punteggioLink ? titoloAlternativo : titoloLink;
+  // Segnale debole (strong/b): usato solo come ripiego, e solo se il testo
+  // del link DA SOLO (senza il bonus del contesto) non sarebbe comunque un
+  // titolo credibile — strong/b sono usati anche per enfasi su "Scadenza:"
+  // o simili, non vanno preferiti a un titolo del link già valido.
+  const punteggioLinkDaSolo = punteggioVoceBando(titoloLink, href);
+  if (punteggioLinkDaSolo >= SOGLIA_VOCE_BANDO) return titoloLink;
+
+  const titoloDebole = testoPulito($contenitore.find(SELETTORI_TITOLO_DEBOLE).first());
+  return titoloDebole && titoloPlausibile(titoloDebole) ? titoloDebole : titoloLink;
 }
 
 /**
@@ -353,16 +400,16 @@ function estraiVociListaEuristica($: cheerio.CheerioAPI, baseUrl: string, massim
     if (!titoloLink) return;
 
     // Contenitore più ampio del link (card/riga di lista): serve sia per il
-    // contesto (testoCompleto, da cui si leggono data/importo) sia per
+    // contesto (testoCompleto, da cui si leggono data/importo/stato, e da
+    // cui ora dipende anche il punteggio — vedi punteggioVoceBando) sia per
     // recuperare il vero titolo quando il link è solo una CTA generica.
     const $contenitore = $link.closest("li, article, tr, .card, .item, .news-item, .box");
     const $contenitoreEffettivo = $contenitore.length ? $contenitore : $link.parent();
-    const titolo = estraiTitoloEffettivo($contenitoreEffettivo, titoloLink, href);
-
-    const punti = punteggioVoceBando(titolo, href);
-    if (punti < SOGLIA_VOCE_BANDO) return;
-
     const testoCompleto = testoPulito($contenitoreEffettivo.length ? $contenitoreEffettivo : $link);
+    const titolo = estraiTitoloEffettivo($contenitoreEffettivo, titoloLink, href, testoCompleto);
+
+    const punti = punteggioVoceBando(titolo, href, testoCompleto);
+    if (punti < SOGLIA_VOCE_BANDO) return;
 
     candidati.push({ linkDettaglio: url, titolo, testoCompleto, punti });
   });
@@ -435,16 +482,21 @@ export function estraiVociListaGenerico(
             return $c.length ? $c : $el.parent();
           })()
         : $el;
-      const titolo = estraiTitoloEffettivo($contenitoreTitolo, titoloLink, href);
+      // Il contesto (e testoCompleto salvato) viene dal contenitore vero,
+      // non da $el: quando il selettore punta direttamente al link $el
+      // coincide con l'anchor, il cui solo testo è spesso una CTA generica
+      // ("Leggi tutto") — il contesto ricco (stato, date) sta nella card.
+      const testoCompleto = testoPulito($contenitoreTitolo.length ? $contenitoreTitolo : $el);
+      const titolo = estraiTitoloEffettivo($contenitoreTitolo, titoloLink, href, testoCompleto);
       if (
         url &&
         titolo &&
         titolo.length > 4 &&
         !visteSelettori.has(url) &&
-        punteggioVoceBando(titolo, href) >= SOGLIA_VOCE_BANDO
+        punteggioVoceBando(titolo, href, testoCompleto) >= SOGLIA_VOCE_BANDO
       ) {
         visteSelettori.add(url);
-        vociDaSelettori.push({ linkDettaglio: url, titolo, testoCompleto: testoPulito($el) });
+        vociDaSelettori.push({ linkDettaglio: url, titolo, testoCompleto });
       }
     });
   }

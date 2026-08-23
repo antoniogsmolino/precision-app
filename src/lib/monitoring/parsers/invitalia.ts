@@ -1,7 +1,14 @@
 /**
  * Parser dedicato — Invitalia (bandi/incentivi nazionali).
- * Stessa nota di calibrazione di incentivi-gov-it.ts: selettori best-effort,
- * da rifinire al primo scan reale su SELETTORI_VOCE.
+ *
+ * SELETTORI_VOCE calibrati su HTML reale (card inviata dal team da
+ * /per-le-imprese/incentivi-e-strumenti): il titolo vero sta in
+ * `h3 a.card-unified__title` dentro `article.card-unified`, il link
+ * "Leggi tutto" nella stessa card punta allo stesso URL ma non è il
+ * titolo — vedi anche `estraiTitoloEffettivo` in shared.ts, che ora
+ * recupera comunque il titolo giusto da qualunque intestazione anche
+ * senza questi selettori specifici (fallback euristico), ma un selettore
+ * mirato resta più preciso e più veloce.
  */
 import {
   buildMisuraGrezzaBase,
@@ -16,7 +23,10 @@ import { filtraCandidatiConAI } from "../classificatore";
 import type { ParserFonte } from "../types";
 
 const SELETTORI_VOCE = [
-  "a[href*='/cosa-facciamo/']",
+  "h3 a.card-unified__title",
+  ".card-unified__title",
+  "article.card-unified a",
+  "a[href*='/incentivi-e-strumenti/']",
   ".card-incentivo a",
   ".listing-item a",
   "article a[href]",
