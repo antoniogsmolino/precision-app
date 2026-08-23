@@ -37,19 +37,19 @@ export function AlertScadenze({ misure }: { misure: MisuraAlert[] }) {
   }));
 
   return (
-    <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50/50 p-4 animate-fade-in sm:p-5">
+    <div className="mb-6 rounded-2xl border border-urgency-500/20 bg-urgency-50/60 p-4 animate-fade-in sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-amber-400 text-white">
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-urgency-500 text-white">
             <BellIcon className="h-3.5 w-3.5" />
           </span>
-          <h2 className="text-[15px] font-semibold text-amber-900">Scadenze imminenti</h2>
+          <h2 className="text-[15px] font-semibold text-urgency-700">Scadenze imminenti</h2>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {conteggi.map(({ soglia, count }) => (
             <span
               key={soglia}
-              className="rounded-full border border-amber-300 bg-white px-2.5 py-1 text-xs font-medium text-amber-700"
+              className="rounded-full border border-urgency-500/30 bg-white px-2.5 py-1 text-xs font-medium text-urgency-700"
             >
               {count} entro {soglia}gg
             </span>
@@ -57,7 +57,7 @@ export function AlertScadenze({ misure }: { misure: MisuraAlert[] }) {
         </div>
       </div>
 
-      <div className="mt-4 divide-y divide-amber-100">
+      <div className="mt-4 divide-y divide-urgency-500/10">
         {inScadenza.slice(0, 6).map(({ misura, giorni }) => (
           <Link
             key={misura.id}
@@ -65,19 +65,19 @@ export function AlertScadenze({ misure }: { misure: MisuraAlert[] }) {
             className="flex items-center justify-between gap-4 py-2.5 first:pt-0 last:pb-0 hover:opacity-80"
           >
             <div className="min-w-0">
-              <p className="truncate text-[13px] font-medium text-slate-800">{misura.titolo}</p>
-              <p className="truncate text-xs text-slate-400">{misura.ente}</p>
+              <p className="truncate text-[13px] font-medium text-ink/90">{misura.titolo}</p>
+              <p className="truncate text-xs text-ink/40">{misura.ente}</p>
             </div>
             <div className="flex shrink-0 items-center gap-3">
-              <span className="text-[13px] font-medium text-slate-600">{formatValoreMisura(misura)}</span>
+              <span className="text-[13px] font-medium text-ink/65">{formatValoreMisura(misura)}</span>
               <span
                 className={
                   "rounded-full px-2 py-0.5 text-xs font-semibold " +
                   (giorni <= 7
-                    ? "bg-red-100 text-red-700"
+                    ? "bg-brand-50 text-brand-700"
                     : giorni <= 14
-                      ? "bg-amber-100 text-amber-700"
-                      : "bg-amber-50 text-amber-600")
+                      ? "bg-urgency-500/15 text-urgency-700"
+                      : "bg-urgency-50 text-urgency-700")
                 }
               >
                 {giorni === 0 ? "scade oggi" : `${giorni}g`}
@@ -88,7 +88,7 @@ export function AlertScadenze({ misure }: { misure: MisuraAlert[] }) {
       </div>
 
       {inScadenza.length > 6 && (
-        <p className="mt-2 text-xs text-amber-700">+ altre {inScadenza.length - 6} in scadenza</p>
+        <p className="mt-2 text-xs text-urgency-700">+ altre {inScadenza.length - 6} in scadenza</p>
       )}
     </div>
   );

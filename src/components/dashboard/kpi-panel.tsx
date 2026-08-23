@@ -20,9 +20,9 @@ interface DatiKpi {
 }
 
 const TILES: { chiave: keyof DatiKpi["totali"]; label: string; colore: string }[] = [
-  { chiave: "candidate", label: "Aziende candidate", colore: "text-brand-600" },
-  { chiave: "ammesse", label: "Aziende ammesse", colore: "text-emerald-600" },
-  { chiave: "contrattiAttivi", label: "Contratti attivi", colore: "text-violet-600" },
+  { chiave: "candidate", label: "Aziende candidate", colore: "text-navigation-600" },
+  { chiave: "ammesse", label: "Aziende ammesse", colore: "text-growth-700" },
+  { chiave: "contrattiAttivi", label: "Contratti attivi", colore: "text-brand-600" },
 ];
 
 export function KpiPanel() {
@@ -41,10 +41,10 @@ export function KpiPanel() {
   return (
     <div className="mb-6">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        {TILES.map((t) => (
-          <Card key={t.chiave}>
+        {TILES.map((t, i) => (
+          <Card key={t.chiave} className="animate-rise-in" style={{ animationDelay: `${i * 60}ms` }}>
             <CardBody className="pt-5">
-              <p className="text-xs font-medium text-slate-400">{t.label}</p>
+              <p className="text-xs font-medium text-ink/40">{t.label}</p>
               {!dati ? (
                 <Skeleton className="mt-2 h-8 w-16" />
               ) : (
@@ -58,12 +58,12 @@ export function KpiPanel() {
       {dati && dati.perMisura.length > 0 && (
         <Card className="mt-4">
           <CardBody className="pt-5">
-            <h2 className="mb-3 text-[13px] font-semibold uppercase tracking-wide text-slate-400">
+            <h2 className="mb-3 text-[13px] font-semibold uppercase tracking-wide text-ink/40">
               Pipeline per misura
             </h2>
             <div className="overflow-x-auto">
               <table className="w-full text-left text-[13px]">
-                <thead className="text-xs uppercase tracking-wide text-slate-400">
+                <thead className="text-xs uppercase tracking-wide text-ink/40">
                   <tr>
                     <th className="py-1.5 pr-3 font-medium">Misura</th>
                     <th className="py-1.5 pr-3 font-medium">Candidate</th>
@@ -73,15 +73,15 @@ export function KpiPanel() {
                 </thead>
                 <tbody>
                   {dati.perMisura.slice(0, 8).map((r) => (
-                    <tr key={r.misuraId} className="border-t border-slate-50">
+                    <tr key={r.misuraId} className="border-t border-ink/[0.04]">
                       <td className="py-2 pr-3">
-                        <Link href={`/misure/${r.misuraId}`} className="font-medium text-slate-700 hover:text-brand-600">
+                        <Link href={`/misure/${r.misuraId}`} className="font-medium text-ink/80 hover:text-brand-600">
                           {r.titolo}
                         </Link>
                       </td>
-                      <td className="py-2 pr-3 text-slate-500">{r.candidate}</td>
-                      <td className="py-2 pr-3 text-slate-500">{r.ammesse}</td>
-                      <td className="py-2 pr-3 text-slate-500">{r.contrattiAttivi}</td>
+                      <td className="py-2 pr-3 text-ink/50">{r.candidate}</td>
+                      <td className="py-2 pr-3 text-ink/50">{r.ammesse}</td>
+                      <td className="py-2 pr-3 text-ink/50">{r.contrattiAttivi}</td>
                     </tr>
                   ))}
                 </tbody>

@@ -109,11 +109,11 @@ export default function ImportaProspectPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-8">
-      <Link href="/prospect" className="mb-4 inline-flex items-center gap-1 text-sm text-slate-400 hover:text-slate-600">
+      <Link href="/prospect" className="mb-4 inline-flex items-center gap-1 text-sm text-ink/40 hover:text-ink/65">
         ← Torna ai prospect
       </Link>
-      <h1 className="mb-1 text-lg font-semibold text-slate-900">Importa prospect da CSV</h1>
-      <p className="mb-6 text-sm text-slate-400">
+      <h1 className="mb-1 text-lg font-semibold text-ink">Importa prospect da CSV</h1>
+      <p className="mb-6 text-sm text-ink/40">
         Il formato di export (es. Atoka) può cambiare: la mappatura delle colonne si fa qui, a video, ad ogni import.
       </p>
 
@@ -122,10 +122,10 @@ export default function ImportaProspectPage() {
       {step === "upload" && (
         <Card className="mt-6">
           <CardBody className="pt-8 pb-8 text-center">
-            <label className="mx-auto flex max-w-sm cursor-pointer flex-col items-center gap-3 rounded-xl border-2 border-dashed border-slate-200 p-8 hover:border-brand-300 hover:bg-brand-50/30">
+            <label className="mx-auto flex max-w-sm cursor-pointer flex-col items-center gap-3 rounded-xl border-2 border-dashed border-ink/10 p-8 hover:border-brand-300 hover:bg-brand-50/30">
               <UploadIcon className="h-8 w-8 text-brand-400" />
-              <span className="text-sm font-medium text-slate-700">Trascina qui il file CSV o clicca per selezionarlo</span>
-              <span className="text-xs text-slate-400">Formato .csv, con intestazioni di colonna</span>
+              <span className="text-sm font-medium text-ink/80">Trascina qui il file CSV o clicca per selezionarlo</span>
+              <span className="text-xs text-ink/40">Formato .csv, con intestazioni di colonna</span>
               <input
                 type="file"
                 accept=".csv,text/csv"
@@ -133,7 +133,7 @@ export default function ImportaProspectPage() {
                 onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
               />
             </label>
-            {erroreFile && <p className="mt-4 text-sm text-red-600">{erroreFile}</p>}
+            {erroreFile && <p className="mt-4 text-sm text-brand-700">{erroreFile}</p>}
           </CardBody>
         </Card>
       )}
@@ -142,21 +142,21 @@ export default function ImportaProspectPage() {
         <Card className="mt-6">
           <CardBody className="pt-5">
             <div className="mb-4 flex items-center justify-between">
-              <p className="text-sm text-slate-500">
-                <span className="font-medium text-slate-700">{nomeFile}</span> — {righeGrezze.length} righe trovate
+              <p className="text-sm text-ink/50">
+                <span className="font-medium text-ink/80">{nomeFile}</span> — {righeGrezze.length} righe trovate
               </p>
             </div>
 
             <div className="space-y-2.5">
               {intestazioni.map((intestazione) => (
-                <div key={intestazione} className="flex flex-col gap-2 rounded-lg border border-slate-100 p-2.5 sm:flex-row sm:items-center sm:gap-3">
+                <div key={intestazione} className="flex flex-col gap-2 rounded-lg border border-ink/[0.06] p-2.5 sm:flex-row sm:items-center sm:gap-3">
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-[13px] font-medium text-slate-700">{intestazione}</p>
-                    <p className="truncate text-xs text-slate-400">
+                    <p className="truncate text-[13px] font-medium text-ink/80">{intestazione}</p>
+                    <p className="truncate text-xs text-ink/40">
                       es. {righeGrezze[0]?.[intestazione] || "—"}
                     </p>
                   </div>
-                  <span className="hidden text-slate-300 sm:inline">→</span>
+                  <span className="hidden text-ink/25 sm:inline">→</span>
                   <Select
                     className="w-full sm:w-56"
                     value={mappatura[intestazione] ?? ""}
@@ -175,7 +175,7 @@ export default function ImportaProspectPage() {
             </div>
 
             {!campiObbligatoriMappati && (
-              <p className="mt-4 text-sm text-amber-600">
+              <p className="mt-4 text-sm text-urgency-700">
                 Mappa almeno Ragione sociale e Partita IVA per continuare.
               </p>
             )}
@@ -195,12 +195,12 @@ export default function ImportaProspectPage() {
       {step === "anteprima" && (
         <Card className="mt-6">
           <CardBody className="pt-5">
-            <p className="mb-3 text-sm text-slate-500">
+            <p className="mb-3 text-sm text-ink/50">
               Anteprima di {Math.min(5, righeMappate.length)} righe su {righeMappate.length} totali:
             </p>
-            <div className="overflow-x-auto rounded-lg border border-slate-100">
+            <div className="overflow-x-auto rounded-lg border border-ink/[0.06]">
               <table className="w-full text-left text-[13px]">
-                <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-400">
+                <thead className="bg-ink/[0.03] text-xs uppercase tracking-wide text-ink/40">
                   <tr>
                     <th className="px-3 py-2">Ragione sociale</th>
                     <th className="px-3 py-2">P.IVA</th>
@@ -212,9 +212,9 @@ export default function ImportaProspectPage() {
                 </thead>
                 <tbody>
                   {righeMappate.slice(0, 5).map((r, i) => (
-                    <tr key={i} className="border-t border-slate-50">
-                      <td className="px-3 py-2">{r.ragioneSociale || <span className="text-red-500">mancante</span>}</td>
-                      <td className="px-3 py-2">{r.piva || <span className="text-red-500">mancante</span>}</td>
+                    <tr key={i} className="border-t border-ink/[0.04]">
+                      <td className="px-3 py-2">{r.ragioneSociale || <span className="text-brand-600">mancante</span>}</td>
+                      <td className="px-3 py-2">{r.piva || <span className="text-brand-600">mancante</span>}</td>
                       <td className="px-3 py-2">{r.ateco ?? "—"}</td>
                       <td className="px-3 py-2">{r.regione ?? "—"}</td>
                       <td className="px-3 py-2">{r.fatturato ?? "—"}</td>
@@ -240,15 +240,15 @@ export default function ImportaProspectPage() {
       {step === "fatto" && risultato && (
         <Card className="mt-6">
           <CardBody className="pt-8 text-center">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-emerald-500">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-growth-50 text-growth-700">
               ✓
             </div>
-            <p className="text-[15px] font-semibold text-slate-900">Import completato</p>
-            <p className="mt-2 text-sm text-slate-500">
+            <p className="text-[15px] font-semibold text-ink">Import completato</p>
+            <p className="mt-2 text-sm text-ink/50">
               {risultato.creati} nuovi · {risultato.aggiornati} aggiornati · {risultato.scartati} scartati
             </p>
             {risultato.erroriRiga.length > 0 && (
-              <div className="mx-auto mt-4 max-h-40 max-w-md overflow-y-auto rounded-lg bg-red-50 p-3 text-left text-xs text-red-600">
+              <div className="mx-auto mt-4 max-h-40 max-w-md overflow-y-auto rounded-lg bg-brand-50 p-3 text-left text-xs text-brand-700">
                 {risultato.erroriRiga.map((e, i) => (
                   <p key={i}>Riga {e.riga}: {e.errore}</p>
                 ))}
@@ -280,7 +280,7 @@ function Stepper({ step }: { step: Step }) {
           <div
             className={
               "flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold " +
-              (i <= indiceAttuale ? "bg-brand-600 text-white" : "bg-slate-100 text-slate-400")
+              (i <= indiceAttuale ? "bg-brand-600 text-white" : "bg-ink/[0.06] text-ink/40")
             }
           >
             {i + 1}
@@ -288,12 +288,12 @@ function Stepper({ step }: { step: Step }) {
           <span
             className={
               "hidden text-xs font-medium sm:inline " +
-              (i <= indiceAttuale ? "text-slate-700" : "text-slate-400")
+              (i <= indiceAttuale ? "text-ink/80" : "text-ink/40")
             }
           >
             {p.label}
           </span>
-          {i < passi.length - 1 && <div className="h-px w-4 shrink-0 bg-slate-200 sm:w-8" />}
+          {i < passi.length - 1 && <div className="h-px w-4 shrink-0 bg-ink/15 sm:w-8" />}
         </div>
       ))}
     </div>

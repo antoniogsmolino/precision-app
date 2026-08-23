@@ -1,16 +1,18 @@
 import { forwardRef, type ButtonHTMLAttributes } from "react";
 import clsx from "clsx";
 
-type Variant = "primary" | "secondary" | "ghost" | "danger";
+type Variant = "primary" | "secondary" | "ghost" | "danger" | "glass";
 type Size = "sm" | "md" | "lg";
 
 const VARIANT_CLASSES: Record<Variant, string> = {
   primary:
-    "bg-brand-600 text-white hover:bg-brand-700 active:bg-brand-800 shadow-sm shadow-brand-600/20 focus-visible:ring-brand-400",
+    "bg-brand-600 text-white hover:bg-brand-700 hover:shadow-glow active:bg-brand-700 shadow-sm shadow-brand-600/25 focus-visible:ring-brand-400",
   secondary:
-    "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 hover:border-slate-300 focus-visible:ring-brand-300",
-  ghost: "bg-transparent text-slate-600 hover:bg-slate-100 focus-visible:ring-brand-300",
-  danger: "bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-400",
+    "bg-white text-ink border border-black/[0.08] hover:bg-surface-alt hover:border-black/[0.12] focus-visible:ring-brand-300",
+  ghost: "bg-transparent text-ink/60 hover:bg-ink/[0.05] hover:text-ink focus-visible:ring-brand-300",
+  danger: "bg-brand-600 text-white hover:bg-brand-700 focus-visible:ring-brand-400",
+  glass:
+    "glass-surface text-ink hover:bg-white/80 focus-visible:ring-brand-300 shadow-glass",
 };
 
 const SIZE_CLASSES: Record<Size, string> = {
@@ -27,9 +29,10 @@ export const Button = forwardRef<
     <button
       ref={ref}
       className={clsx(
-        "inline-flex items-center justify-center rounded-lg font-medium transition-all duration-150",
+        "inline-flex items-center justify-center rounded-full font-medium",
+        "transition-[transform,box-shadow,background-color,border-color,color] duration-200 ease-glass",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1",
-        "disabled:opacity-50 disabled:pointer-events-none active:scale-[0.98]",
+        "disabled:opacity-50 disabled:pointer-events-none active:scale-[0.96]",
         VARIANT_CLASSES[variant],
         SIZE_CLASSES[size],
         className,

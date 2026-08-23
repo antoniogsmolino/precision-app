@@ -46,15 +46,15 @@ export default function DashboardPage() {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="flex flex-col gap-3 border-b border-slate-100 bg-white px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-5">
+      <header className="flex flex-col gap-3 border-b border-ink/[0.06] bg-white px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-5">
         <div>
-          <h1 className="text-lg font-semibold text-slate-900">Radar misure</h1>
-          <p className="mt-0.5 hidden text-sm text-slate-400 sm:block">
+          <h1 className="text-lg font-semibold text-ink">Radar misure</h1>
+          <p className="mt-0.5 hidden text-sm text-ink/40 sm:block">
             Tutte le misure di finanza agevolata monitorate, in un colpo d&apos;occhio.
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <div className="flex rounded-lg border border-slate-200 bg-slate-50 p-0.5">
+          <div className="flex rounded-full border border-ink/10 bg-ink/[0.03] p-0.5">
             <ToggleVista label="Timeline" attivo={vista === "timeline"} onClick={() => setVista("timeline")} />
             <ToggleVista label="Elenco" attivo={vista === "elenco"} onClick={() => setVista("elenco")} />
           </div>
@@ -77,7 +77,7 @@ export default function DashboardPage() {
 
       <div className="flex-1 px-4 py-4 sm:px-6 sm:py-6">
         {errore && (
-          <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">{errore}</div>
+          <div className="mb-4 rounded-xl bg-brand-50 px-4 py-3 text-sm text-brand-700">{errore}</div>
         )}
 
         {!misure && !errore && vista === "timeline" && <SkeletonTimeline />}
@@ -114,7 +114,7 @@ export default function DashboardPage() {
         )}
 
         {misure && misureFiltrate.length > 0 && vista === "timeline" && (
-          <div className="rounded-2xl border border-slate-200 bg-white p-2.5 shadow-card sm:p-4">
+          <div className="rounded-2xl border border-ink/10 bg-white p-2.5 shadow-card sm:p-4">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2 px-1.5 sm:px-0">
               <Legenda />
               <TimelineToolbar timelineRef={timelineRef} />
@@ -125,13 +125,15 @@ export default function DashboardPage() {
 
         {misure && misureFiltrate.length > 0 && vista === "elenco" && (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {misureFiltrate.map((m) => (
-              <MisuraCard key={m.id} misura={m} />
+            {misureFiltrate.map((m, i) => (
+              <div key={m.id} className="animate-rise-in" style={{ animationDelay: `${Math.min(i, 10) * 40}ms` }}>
+                <MisuraCard misura={m} />
+              </div>
             ))}
           </div>
         )}
 
-        <p className="mt-6 text-center text-xs text-slate-400">
+        <p className="mt-6 text-center text-xs text-ink/40">
           Il matching mostrato è sempre indicativo: verifica sempre i requisiti completi sulla fonte ufficiale prima di procedere con un&apos;azienda.
         </p>
       </div>
@@ -144,8 +146,8 @@ function ToggleVista({ label, attivo, onClick }: { label: string; attivo: boolea
     <button
       onClick={onClick}
       className={clsx(
-        "rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
-        attivo ? "bg-white text-brand-700 shadow-sm" : "text-slate-500 hover:text-slate-700",
+        "rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-all duration-200 ease-glass",
+        attivo ? "bg-white text-brand-700 shadow-sm" : "text-ink/50 hover:text-ink/80",
       )}
     >
       {label}
@@ -158,7 +160,7 @@ function Legenda() {
   return (
     <div className="flex flex-wrap items-center gap-4 px-1">
       {stati.map((s) => (
-        <div key={s} className="flex items-center gap-1.5 text-xs text-slate-500">
+        <div key={s} className="flex items-center gap-1.5 text-xs text-ink/50">
           <span
             className="h-2.5 w-2.5 rounded-full"
             style={{ backgroundColor: STATO_TIMELINE_COLOR[s].bg }}

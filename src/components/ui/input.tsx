@@ -2,9 +2,10 @@ import { forwardRef, type InputHTMLAttributes, type SelectHTMLAttributes, type T
 import clsx from "clsx";
 
 const fieldBase =
-  "w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm transition-colors " +
-  "placeholder:text-slate-400 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100 " +
-  "disabled:bg-slate-50 disabled:text-slate-400";
+  "w-full rounded-xl border border-ink/10 bg-white px-3 py-2 text-sm text-ink/90 shadow-sm " +
+  "transition-[border-color,box-shadow] duration-200 ease-glass " +
+  "placeholder:text-ink/35 focus:border-brand-400 focus:outline-none focus:ring-4 focus:ring-brand-100/70 " +
+  "disabled:bg-ink/[0.03] disabled:text-ink/40";
 
 export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(
   ({ className, ...props }, ref) => (
@@ -28,9 +29,9 @@ export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSel
 Select.displayName = "Select";
 
 export function Label({ className, ...props }: LabelHTMLAttributes<HTMLLabelElement>) {
-  return <label className={clsx("mb-1.5 block text-[13px] font-medium text-slate-600", className)} {...props} />;
+  return <label className={clsx("mb-1.5 block text-[13px] font-medium text-ink/65", className)} {...props} />;
 }
 
 export function FieldHint({ children }: { children: React.ReactNode }) {
-  return <p className="mt-1 text-xs text-slate-400">{children}</p>;
+  return <p className="mt-1 text-xs text-ink/40">{children}</p>;
 }

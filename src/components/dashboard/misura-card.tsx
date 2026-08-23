@@ -39,23 +39,23 @@ export function MisuraCard({ misura }: { misura: MisuraCardData }) {
         <CardBody className="pt-5">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="truncate text-[13px] font-medium text-slate-400">{misura.ente}</p>
-              <h3 className="mt-0.5 line-clamp-2 text-[15px] font-semibold leading-snug text-slate-900">
+              <p className="truncate text-[13px] font-medium text-ink/40">{misura.ente}</p>
+              <h3 className="mt-0.5 line-clamp-2 text-[15px] font-semibold leading-snug text-ink">
                 {misura.titolo}
               </h3>
             </div>
             <StatoBadge stato={stato} className="shrink-0" />
           </div>
 
-          <p className="mt-2.5 line-clamp-2 text-[13px] leading-relaxed text-slate-500">
+          <p className="mt-2.5 line-clamp-2 text-[13px] leading-relaxed text-ink/50">
             {misura.descrizioneBreve}
           </p>
 
           <div className="mt-3.5 flex flex-wrap items-center gap-1.5">
-            <Badge className="border-slate-200 bg-slate-50 text-slate-600">
+            <Badge className="border-ink/10 bg-ink/[0.04] text-ink/70">
               {CATEGORIA_LABEL[misura.categoria]}
             </Badge>
-            <Badge className="border-slate-200 bg-slate-50 text-slate-600">
+            <Badge className="border-ink/10 bg-ink/[0.04] text-ink/70">
               {TIPO_AGEVOLAZIONE_LABEL[misura.tipoAgevolazione]}
             </Badge>
             {misura.rilevataAutomaticamente && (
@@ -65,9 +65,9 @@ export function MisuraCard({ misura }: { misura: MisuraCardData }) {
             )}
           </div>
 
-          <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3">
-            <span className="text-[15px] font-semibold text-slate-900">{formatValoreMisura(misura)}</span>
-            <span className="text-xs text-slate-400">
+          <div className="mt-4 flex items-center justify-between border-t border-ink/[0.06] pt-3">
+            <span className="text-[15px] font-semibold text-ink">{formatValoreMisura(misura)}</span>
+            <span className="text-xs text-ink/40">
               {stato === "SCADUTA"
                 ? "Scaduta"
                 : stato === "FUTURA"

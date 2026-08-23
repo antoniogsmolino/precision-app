@@ -5,7 +5,7 @@ export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
   return (
     <div
       className={clsx(
-        "rounded-2xl border border-slate-200 bg-white shadow-card transition-shadow",
+        "rounded-3xl border border-black/[0.06] bg-white shadow-card transition-shadow",
         className,
       )}
       {...props}
@@ -17,13 +17,19 @@ export function CardInteractive({ className, ...props }: HTMLAttributes<HTMLDivE
   return (
     <div
       className={clsx(
-        "rounded-2xl border border-slate-200 bg-white shadow-card transition-all duration-150",
-        "hover:shadow-card-hover hover:border-brand-200 cursor-pointer",
+        "rounded-3xl border border-black/[0.06] bg-white shadow-card cursor-pointer",
+        "transition-[transform,box-shadow,border-color] duration-300 ease-glass",
+        "hover:-translate-y-0.5 hover:shadow-card-hover hover:border-brand-200/70",
         className,
       )}
       {...props}
     />
   );
+}
+
+/** Superficie "Liquid Glass": per pannelli in evidenza sopra sfondi ricchi (login, header). */
+export function CardGlass({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
+  return <div className={clsx("glass-surface rounded-3xl", className)} {...props} />;
 }
 
 export function CardHeader({ className, ...props }: HTMLAttributes<HTMLDivElement>) {

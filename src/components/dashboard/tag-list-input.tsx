@@ -31,17 +31,17 @@ export function TagListInput({
 
   return (
     <div>
-      <div className="flex flex-wrap gap-1.5 rounded-lg border border-slate-200 bg-white p-2 focus-within:border-brand-400 focus-within:ring-2 focus-within:ring-brand-100">
+      <div className="flex flex-wrap gap-1.5 rounded-lg border border-ink/10 bg-white p-2 focus-within:border-brand-400 focus-within:ring-2 focus-within:ring-brand-100">
         {values.map((v) => (
           <span
             key={v}
-            className="flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600"
+            className="flex items-center gap-1 rounded-md bg-ink/[0.06] px-2 py-0.5 text-xs font-medium text-ink/65"
           >
             {v}
             <button
               type="button"
               onClick={() => onChange(values.filter((x) => x !== v))}
-              className="text-slate-400 hover:text-slate-700"
+              className="text-ink/40 hover:text-ink/80"
               aria-label={`Rimuovi ${v}`}
             >
               ×
@@ -54,10 +54,10 @@ export function TagListInput({
           onKeyDown={onKeyDown}
           onBlur={aggiungi}
           placeholder={values.length === 0 ? placeholder : ""}
-          className="min-w-[120px] flex-1 border-none bg-transparent text-sm outline-none placeholder:text-slate-400"
+          className="min-w-[120px] flex-1 border-none bg-transparent text-sm outline-none placeholder:text-ink/40"
         />
       </div>
-      <p className="mt-1 text-xs text-slate-400">Premi Invio o virgola per aggiungere</p>
+      <p className="mt-1 text-xs text-ink/40">Premi Invio o virgola per aggiungere</p>
     </div>
   );
 }

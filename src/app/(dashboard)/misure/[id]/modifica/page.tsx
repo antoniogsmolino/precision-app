@@ -67,8 +67,8 @@ export default function ModificaMisuraPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-8">
-      <h1 className="mb-1 text-lg font-semibold text-slate-900">Modifica misura</h1>
-      <p className="mb-6 text-sm text-slate-400">
+      <h1 className="mb-1 text-lg font-semibold text-ink">Modifica misura</h1>
+      <p className="mb-6 text-sm text-ink/40">
         Correggi i dati rilevati automaticamente o aggiorna una misura esistente.
       </p>
       {!valori ? (

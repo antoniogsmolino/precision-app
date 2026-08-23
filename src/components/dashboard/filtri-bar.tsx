@@ -27,7 +27,7 @@ export function FiltriBar({
   ];
 
   return (
-    <div className="flex items-center gap-2 overflow-x-auto border-b border-slate-100 bg-white px-4 py-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:shrink-0 sm:flex-wrap sm:overflow-x-visible sm:px-6 sm:py-3.5">
+    <div className="flex items-center gap-2 overflow-x-auto border-b border-ink/[0.06] bg-white px-4 py-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:shrink-0 sm:flex-wrap sm:overflow-x-visible sm:px-6 sm:py-3.5">
       <MultiSelectFilter
         label="Regione"
         options={ITALIA_REGIONI.map((r) => ({ value: r, label: r }))}
@@ -74,7 +74,7 @@ export function FiltriBar({
           value={filtri.importoMin ?? ""}
           onChange={(e) => set("importoMin", e.target.value === "" ? null : Number(e.target.value))}
         />
-        <span className="text-slate-300">–</span>
+        <span className="text-ink/25">–</span>
         <Input
           type="number"
           placeholder="€ max"

@@ -38,7 +38,7 @@ export function MultiSelectFilter({
           "flex h-9 items-center gap-1.5 rounded-lg border px-3 text-[13px] font-medium transition-colors",
           selected.length > 0
             ? "border-brand-300 bg-brand-50 text-brand-700"
-            : "border-slate-200 bg-white text-slate-600 hover:border-slate-300",
+            : "border-ink/10 bg-white text-ink/65 hover:border-ink/20",
         )}
       >
         {label}
@@ -47,11 +47,11 @@ export function MultiSelectFilter({
             {selected.length}
           </span>
         )}
-        <ChevronIcon className="h-3.5 w-3.5 text-slate-400" />
+        <ChevronIcon className="h-3.5 w-3.5 text-ink/40" />
       </button>
 
       {aperto && (
-        <div className="absolute left-0 top-full z-20 mt-1.5 max-h-72 w-56 max-w-[85vw] overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-card-hover animate-fade-in">
+        <div className="absolute left-0 top-full z-20 mt-1.5 max-h-72 w-56 max-w-[85vw] overflow-y-auto rounded-xl border border-ink/10 bg-white p-1.5 shadow-card-hover animate-fade-in">
           {selected.length > 0 && (
             <button
               type="button"
@@ -64,18 +64,18 @@ export function MultiSelectFilter({
           {options.map((opt) => (
             <label
               key={opt.value}
-              className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-[13px] text-slate-700 hover:bg-slate-50"
+              className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-[13px] text-ink/80 hover:bg-ink/[0.03]"
             >
               <input
                 type="checkbox"
-                className="h-3.5 w-3.5 rounded border-slate-300 text-brand-600 focus:ring-brand-400"
+                className="h-3.5 w-3.5 rounded border-ink/20 text-brand-600 focus:ring-brand-400"
                 checked={selected.includes(opt.value)}
                 onChange={() => toggle(opt.value)}
               />
               {opt.label}
             </label>
           ))}
-          {options.length === 0 && <p className="px-2 py-1.5 text-xs text-slate-400">Nessuna opzione</p>}
+          {options.length === 0 && <p className="px-2 py-1.5 text-xs text-ink/40">Nessuna opzione</p>}
         </div>
       )}
     </div>

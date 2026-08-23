@@ -167,7 +167,7 @@ export function MisuraForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {errori.length > 0 && (
-        <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">
+        <div className="rounded-xl bg-brand-50 px-4 py-3 text-sm text-brand-700">
           <ul className="list-inside list-disc">
             {errori.map((e, i) => (
               <li key={i}>{e}</li>
@@ -178,7 +178,7 @@ export function MisuraForm({
 
       <Card>
         <CardBody className="pt-5">
-          <h2 className="mb-4 text-[13px] font-semibold uppercase tracking-wide text-slate-400">
+          <h2 className="mb-4 text-[13px] font-semibold uppercase tracking-wide text-ink/40">
             Informazioni generali
           </h2>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -223,7 +223,7 @@ export function MisuraForm({
 
       <Card>
         <CardBody className="pt-5">
-          <h2 className="mb-4 text-[13px] font-semibold uppercase tracking-wide text-slate-400">Valore economico</h2>
+          <h2 className="mb-4 text-[13px] font-semibold uppercase tracking-wide text-ink/40">Valore economico</h2>
           <Field label="Forma del valore" required>
             <Select value={valori.tipoValore} onChange={(e) => set("tipoValore", e.target.value as TipoValore)}>
               <option value="IMPORTO_FISSO">Importo fisso</option>
@@ -274,7 +274,7 @@ export function MisuraForm({
 
       <Card>
         <CardBody className="pt-5">
-          <h2 className="mb-4 text-[13px] font-semibold uppercase tracking-wide text-slate-400">
+          <h2 className="mb-4 text-[13px] font-semibold uppercase tracking-wide text-ink/40">
             Requisiti di ammissibilità
           </h2>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -288,7 +288,7 @@ export function MisuraForm({
 
           <div className="mt-4">
             <Field label="Regioni ammesse (vuoto = tutte)">
-              <div className="flex flex-wrap gap-1.5 rounded-lg border border-slate-200 bg-white p-2.5">
+              <div className="flex flex-wrap gap-1.5 rounded-lg border border-ink/10 bg-white p-2.5">
                 {ITALIA_REGIONI.map((r) => {
                   const attiva = valori.regioniAmmesse.includes(r);
                   return (
@@ -305,7 +305,7 @@ export function MisuraForm({
                         "rounded-full border px-2.5 py-1 text-xs font-medium transition-colors " +
                         (attiva
                           ? "border-brand-300 bg-brand-50 text-brand-700"
-                          : "border-slate-200 bg-white text-slate-500 hover:border-slate-300")
+                          : "border-ink/10 bg-white text-ink/50 hover:border-ink/20")
                       }
                     >
                       {r}
@@ -341,7 +341,7 @@ export function MisuraForm({
 
       <Card>
         <CardBody className="pt-5">
-          <h2 className="mb-4 text-[13px] font-semibold uppercase tracking-wide text-slate-400">
+          <h2 className="mb-4 text-[13px] font-semibold uppercase tracking-wide text-ink/40">
             Documenti, fonte e cumulabilità
           </h2>
           <Field label="Documenti richiesti (checklist)">
@@ -372,20 +372,20 @@ export function MisuraForm({
                 onChange={(e) => setRicercaCumulabili(e.target.value)}
                 className="mb-2"
               />
-              <div className="max-h-44 overflow-y-auto rounded-lg border border-slate-200">
+              <div className="max-h-44 overflow-y-auto rounded-lg border border-ink/10">
                 {misureFiltrate.length === 0 && (
-                  <p className="px-3 py-2 text-xs text-slate-400">Nessuna misura trovata</p>
+                  <p className="px-3 py-2 text-xs text-ink/40">Nessuna misura trovata</p>
                 )}
                 {misureFiltrate.map((m) => {
                   const attiva = valori.cumulabiliIds.includes(m.id);
                   return (
                     <label
                       key={m.id}
-                      className="flex cursor-pointer items-center gap-2 border-b border-slate-50 px-3 py-2 text-[13px] last:border-0 hover:bg-slate-50"
+                      className="flex cursor-pointer items-center gap-2 border-b border-ink/[0.04] px-3 py-2 text-[13px] last:border-0 hover:bg-ink/[0.03]"
                     >
                       <input
                         type="checkbox"
-                        className="h-3.5 w-3.5 rounded border-slate-300 text-brand-600"
+                        className="h-3.5 w-3.5 rounded border-ink/20 text-brand-600"
                         checked={attiva}
                         onChange={() =>
                           set(

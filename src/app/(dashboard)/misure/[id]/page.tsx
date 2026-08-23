@@ -115,18 +115,18 @@ export default function MisuraDettaglioPage() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6 sm:py-8">
-      <Link href="/dashboard" className="mb-4 inline-flex items-center gap-1 text-sm text-slate-400 hover:text-slate-600">
+      <Link href="/dashboard" className="mb-4 inline-flex items-center gap-1 text-sm text-ink/40 hover:text-ink/65">
         ← Torna al radar
       </Link>
 
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-sm font-medium text-slate-400">{misura.ente}</p>
-          <h1 className="mt-1 text-2xl font-semibold text-slate-900">{misura.titolo}</h1>
+          <p className="text-sm font-medium text-ink/40">{misura.ente}</p>
+          <h1 className="mt-1 text-2xl font-semibold text-ink">{misura.titolo}</h1>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <StatoBadge stato={stato} />
-            <Badge className="border-slate-200 bg-slate-50 text-slate-600">{CATEGORIA_LABEL[misura.categoria]}</Badge>
-            <Badge className="border-slate-200 bg-slate-50 text-slate-600">
+            <Badge className="border-ink/10 bg-ink/[0.04] text-ink/70">{CATEGORIA_LABEL[misura.categoria]}</Badge>
+            <Badge className="border-ink/10 bg-ink/[0.04] text-ink/70">
               {TIPO_AGEVOLAZIONE_LABEL[misura.tipoAgevolazione]}
             </Badge>
             {misura.rilevataAutomaticamente && (
@@ -158,8 +158,8 @@ export default function MisuraDettaglioPage() {
       <Card className="mt-6">
         <CardBody className="pt-5">
           <SectionTitle>Descrizione</SectionTitle>
-          <p className="text-[13px] leading-relaxed text-slate-500">{misura.descrizioneBreve}</p>
-          <p className="mt-2 whitespace-pre-line text-[13px] leading-relaxed text-slate-600">{misura.descrizioneEstesa}</p>
+          <p className="text-[13px] leading-relaxed text-ink/50">{misura.descrizioneBreve}</p>
+          <p className="mt-2 whitespace-pre-line text-[13px] leading-relaxed text-ink/65">{misura.descrizioneEstesa}</p>
         </CardBody>
       </Card>
 
@@ -188,7 +188,7 @@ export default function MisuraDettaglioPage() {
             />
           </dl>
           {misura.altriRequisiti && (
-            <p className="mt-3 rounded-lg bg-slate-50 p-3 text-[13px] text-slate-600">{misura.altriRequisiti}</p>
+            <p className="mt-3 rounded-lg bg-ink/[0.03] p-3 text-[13px] text-ink/65">{misura.altriRequisiti}</p>
           )}
         </CardBody>
       </Card>
@@ -199,7 +199,7 @@ export default function MisuraDettaglioPage() {
             <SectionTitle>Documenti richiesti</SectionTitle>
             <ul className="space-y-1.5">
               {misura.documentiRichiesti.map((doc, i) => (
-                <li key={i} className="flex items-center gap-2 text-[13px] text-slate-600">
+                <li key={i} className="flex items-center gap-2 text-[13px] text-ink/65">
                   <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-brand-400" />
                   {doc}
                 </li>
@@ -236,7 +236,7 @@ export default function MisuraDettaglioPage() {
               </a>
             )}
           </div>
-          <p className="mb-3 text-xs text-slate-400">
+          <p className="mb-3 text-xs text-ink/40">
             Match indicativo calcolato dal motore a regole: non è una garanzia di ammissione.
           </p>
 
@@ -255,7 +255,7 @@ export default function MisuraDettaglioPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-left text-[13px]">
                 <thead>
-                  <tr className="border-b border-slate-100 text-xs uppercase tracking-wide text-slate-400">
+                  <tr className="border-b border-ink/[0.06] text-xs uppercase tracking-wide text-ink/40">
                     <th className="py-2 pr-3 font-medium">Ragione sociale</th>
                     <th className="py-2 pr-3 font-medium">P.IVA</th>
                     <th className="py-2 pr-3 font-medium">Regione</th>
@@ -265,15 +265,15 @@ export default function MisuraDettaglioPage() {
                 </thead>
                 <tbody>
                   {prospectIdonei.map((m) => (
-                    <tr key={m.id} className="border-b border-slate-50 last:border-0">
-                      <td className="py-2 pr-3 font-medium text-slate-700">
+                    <tr key={m.id} className="border-b border-ink/[0.04] last:border-0">
+                      <td className="py-2 pr-3 font-medium text-ink/80">
                         <Link href={`/prospect?evidenzia=${m.prospect.id}`} className="hover:text-brand-600">
                           {m.prospect.ragioneSociale}
                         </Link>
                       </td>
-                      <td className="py-2 pr-3 text-slate-500">{m.prospect.piva}</td>
-                      <td className="py-2 pr-3 text-slate-500">{m.prospect.regione ?? "—"}</td>
-                      <td className="py-2 pr-3 text-slate-500">{m.prospect.ateco ?? "—"}</td>
+                      <td className="py-2 pr-3 text-ink/50">{m.prospect.piva}</td>
+                      <td className="py-2 pr-3 text-ink/50">{m.prospect.regione ?? "—"}</td>
+                      <td className="py-2 pr-3 text-ink/50">{m.prospect.ateco ?? "—"}</td>
                       <td className="py-2 pr-3">
                         <Select
                           className="h-8 py-0 text-xs"
@@ -308,10 +308,10 @@ export default function MisuraDettaglioPage() {
       </div>
 
       {misura.noteInterne && (
-        <Card className="mt-4 border-amber-200 bg-amber-50/40">
+        <Card className="mt-4 border-urgency-500/20 bg-urgency-50/50">
           <CardBody className="pt-5">
             <SectionTitle>Note interne</SectionTitle>
-            <p className="whitespace-pre-line text-[13px] text-slate-600">{misura.noteInterne}</p>
+            <p className="whitespace-pre-line text-[13px] text-ink/65">{misura.noteInterne}</p>
           </CardBody>
         </Card>
       )}
@@ -320,15 +320,15 @@ export default function MisuraDettaglioPage() {
 }
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <h2 className="mb-2.5 text-[13px] font-semibold uppercase tracking-wide text-slate-400">{children}</h2>;
+  return <h2 className="mb-2.5 text-[13px] font-semibold uppercase tracking-wide text-ink/40">{children}</h2>;
 }
 
 function StatTile({ label, value }: { label: string; value: string }) {
   return (
     <Card>
       <CardBody className="pt-5">
-        <p className="text-xs font-medium text-slate-400">{label}</p>
-        <p className="mt-1 text-[15px] font-semibold text-slate-900">{value}</p>
+        <p className="text-xs font-medium text-ink/40">{label}</p>
+        <p className="mt-1 text-[15px] font-semibold text-ink">{value}</p>
       </CardBody>
     </Card>
   );
@@ -337,8 +337,8 @@ function StatTile({ label, value }: { label: string; value: string }) {
 function Requisito({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="text-xs font-medium text-slate-400">{label}</dt>
-      <dd className="mt-0.5 text-slate-700">{value}</dd>
+      <dt className="text-xs font-medium text-ink/40">{label}</dt>
+      <dd className="mt-0.5 text-ink/80">{value}</dd>
     </div>
   );
 }

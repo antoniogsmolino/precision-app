@@ -78,8 +78,8 @@ function ProspectContent() {
     <div className="px-4 py-6 sm:px-6 sm:py-8">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-lg font-semibold text-slate-900">Prospect</h1>
-          <p className="mt-0.5 text-sm text-slate-400">Anagrafiche importate e relativo matching con le misure.</p>
+          <h1 className="text-lg font-semibold text-ink">Prospect</h1>
+          <p className="mt-0.5 text-sm text-ink/40">Anagrafiche importate e relativo matching con le misure.</p>
         </div>
         <Link href="/prospect/importa">
           <Button>Importa CSV</Button>
@@ -125,9 +125,9 @@ function ProspectContent() {
       )}
 
       {prospect && prospect.length > 0 && (
-        <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-card">
+        <div className="overflow-x-auto rounded-2xl border border-ink/10 bg-white shadow-card">
           <table className="w-full text-left text-[13px]">
-            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-400">
+            <thead className="bg-ink/[0.03] text-xs uppercase tracking-wide text-ink/40">
               <tr>
                 <th className="px-4 py-3 font-medium">Ragione sociale</th>
                 <th className="px-4 py-3 font-medium">P.IVA</th>
@@ -145,21 +145,21 @@ function ProspectContent() {
                     key={p.id}
                     id={`prospect-${p.id}`}
                     className={
-                      "border-t border-slate-50 transition-colors " +
-                      (evidenziaId === p.id ? "bg-brand-50/60" : "hover:bg-slate-50/60")
+                      "border-t border-ink/[0.04] transition-colors " +
+                      (evidenziaId === p.id ? "bg-brand-50/60" : "hover:bg-ink/[0.03]")
                     }
                   >
-                    <td className="px-4 py-3 font-medium text-slate-800">{p.ragioneSociale}</td>
-                    <td className="px-4 py-3 text-slate-500">{p.piva}</td>
-                    <td className="px-4 py-3 text-slate-500">{p.ateco ?? "—"}</td>
-                    <td className="px-4 py-3 text-slate-500">{p.regione ?? "—"}</td>
-                    <td className="px-4 py-3 text-slate-500">{p.fatturato ? euro.format(Number(p.fatturato)) : "—"}</td>
-                    <td className="px-4 py-3 text-slate-500">{p.numeroDipendenti ?? "—"}</td>
+                    <td className="px-4 py-3 font-medium text-ink/90">{p.ragioneSociale}</td>
+                    <td className="px-4 py-3 text-ink/50">{p.piva}</td>
+                    <td className="px-4 py-3 text-ink/50">{p.ateco ?? "—"}</td>
+                    <td className="px-4 py-3 text-ink/50">{p.regione ?? "—"}</td>
+                    <td className="px-4 py-3 text-ink/50">{p.fatturato ? euro.format(Number(p.fatturato)) : "—"}</td>
+                    <td className="px-4 py-3 text-ink/50">{p.numeroDipendenti ?? "—"}</td>
                     <td className="px-4 py-3">
                       <button
                         onClick={() => toggleEspanso(p.id)}
                         disabled={p._count.matches === 0}
-                        className="flex items-center gap-1.5 rounded-full border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 hover:border-brand-300 hover:text-brand-700 disabled:cursor-default disabled:opacity-50"
+                        className="flex items-center gap-1.5 rounded-full border border-ink/10 px-2.5 py-1 text-xs font-medium text-ink/65 hover:border-brand-300 hover:text-brand-700 disabled:cursor-default disabled:opacity-50"
                       >
                         {p._count.matches} misur{p._count.matches === 1 ? "a" : "e"}
                         {p._count.matches > 0 && <span>{espansi.has(p.id) ? "▲" : "▼"}</span>}
@@ -167,7 +167,7 @@ function ProspectContent() {
                     </td>
                   </tr>
                   {espansi.has(p.id) && p._count.matches > 0 && (
-                    <tr className="border-t border-slate-50 bg-slate-50/50">
+                    <tr className="border-t border-ink/[0.04] bg-ink/[0.03]">
                       <td colSpan={7} className="px-4 py-3">
                         <div className="flex flex-wrap gap-1.5">
                           {p.matches.map((m) => (
@@ -188,7 +188,7 @@ function ProspectContent() {
         </div>
       )}
 
-      <p className="mt-6 text-center text-xs text-slate-400">
+      <p className="mt-6 text-center text-xs text-ink/40">
         Il matching è indicativo: verifica sempre i requisiti completi prima di proporre una misura a un&apos;azienda.
       </p>
     </div>

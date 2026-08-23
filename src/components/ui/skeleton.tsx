@@ -7,7 +7,7 @@ export function Skeleton({ className, style }: { className?: string; style?: CSS
 
 export function SkeletonTimeline() {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-card">
+    <div className="rounded-2xl border border-ink/10 bg-white p-4 shadow-card">
       <div className="mb-3 flex items-center justify-between">
         <Skeleton className="h-4 w-64" />
         <Skeleton className="h-6 w-40" />
@@ -26,7 +26,7 @@ export function SkeletonTimeline() {
 
 export function SkeletonCard() {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-card">
+    <div className="rounded-2xl border border-ink/10 bg-white p-5 shadow-card">
       <div className="flex items-start justify-between gap-3">
         <Skeleton className="h-4 w-2/3" />
         <Skeleton className="h-5 w-16 rounded-full" />

@@ -17,18 +17,18 @@ export function TimelineToolbar({ timelineRef }: { timelineRef: RefObject<Timeli
         <button
           key={p.mesi}
           onClick={() => timelineRef.current?.impostaFinestraMesi(p.mesi)}
-          className="rounded-md border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-500 transition-colors hover:border-brand-300 hover:text-brand-700"
+          className="rounded-md border border-ink/10 px-2.5 py-1 text-xs font-medium text-ink/50 transition-colors hover:border-brand-300 hover:text-brand-700"
         >
           {p.label}
         </button>
       ))}
       <button
         onClick={() => timelineRef.current?.fit()}
-        className="rounded-md border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-500 transition-colors hover:border-brand-300 hover:text-brand-700"
+        className="rounded-md border border-ink/10 px-2.5 py-1 text-xs font-medium text-ink/50 transition-colors hover:border-brand-300 hover:text-brand-700"
       >
         Tutto
       </button>
-      <div className="mx-1 h-4 w-px bg-slate-200" />
+      <div className="mx-1 h-4 w-px bg-ink/15" />
       <ZoomButton onClick={() => timelineRef.current?.zoomOut()} label="Riduci zoom">
         −
       </ZoomButton>
@@ -54,7 +54,7 @@ function ZoomButton({
       aria-label={label}
       title={label}
       className={clsx(
-        "flex h-6 w-6 items-center justify-center rounded-md border border-slate-200 text-sm font-semibold text-slate-500",
+        "flex h-6 w-6 items-center justify-center rounded-md border border-ink/10 text-sm font-semibold text-ink/50",
         "transition-colors hover:border-brand-300 hover:text-brand-700",
       )}
     >

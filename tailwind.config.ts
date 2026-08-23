@@ -1,10 +1,10 @@
 import type { Config } from "tailwindcss";
 
-// Tutta la palette "brand" è pilotata da variabili CSS (vedi src/app/globals.css,
+// Tutta la palette è pilotata da variabili CSS (vedi src/app/globals.css,
 // blocco :root). Per cambiare colore del tema in futuro basta editare quelle
 // variabili — non serve toccare questo file né i componenti.
-function brandColor(shade: string) {
-  return `hsl(var(--brand-${shade}) / <alpha-value>)`;
+function token(nome: string) {
+  return `hsl(var(--${nome}) / <alpha-value>)`;
 }
 
 const config: Config = {
@@ -14,23 +14,39 @@ const config: Config = {
     extend: {
       colors: {
         brand: {
-          50: brandColor("50"),
-          100: brandColor("100"),
-          200: brandColor("200"),
-          300: brandColor("300"),
-          400: brandColor("400"),
-          500: brandColor("500"),
-          600: brandColor("600"),
-          700: brandColor("700"),
-          800: brandColor("800"),
-          900: brandColor("900"),
-          950: brandColor("950"),
+          50: token("brand-50"),
+          100: token("brand-100"),
+          200: token("brand-200"),
+          300: token("brand-300"),
+          400: token("brand-400"),
+          500: token("brand-500"),
+          600: token("brand-600"), // #E41F25 — PRIMARY
+          700: token("brand-700"), // #C91F12 — PRIMARY HOVER
+          800: token("brand-800"),
+          900: token("brand-900"),
+          950: token("brand-950"),
         },
-        status: {
-          futura: "#8B5CF6",
-          attiva: "#22C55E",
-          scadenza: "#F59E0B",
-          scaduta: "#94A3B8",
+        ink: token("ink"), // #2B2E34
+        growth: {
+          50: token("growth-50"),
+          500: token("growth-500"), // #65BD7D
+          600: token("growth-600"),
+          700: token("growth-700"),
+        },
+        navigation: {
+          50: token("navigation-50"),
+          500: token("navigation-500"), // #198FD9
+          600: token("navigation-600"),
+          700: token("navigation-700"),
+        },
+        urgency: {
+          50: token("urgency-50"),
+          500: token("urgency-500"),
+          700: token("urgency-700"),
+        },
+        surface: {
+          DEFAULT: token("surface"),
+          alt: token("surface-alt"), // #F9F9FB
         },
       },
       fontFamily: {
@@ -44,9 +60,10 @@ const config: Config = {
         ],
       },
       boxShadow: {
-        card: "0 1px 2px 0 rgb(15 23 42 / 0.04), 0 1px 3px 0 rgb(15 23 42 / 0.06)",
-        "card-hover":
-          "0 4px 12px -2px rgb(15 23 42 / 0.08), 0 2px 6px -2px rgb(15 23 42 / 0.06)",
+        card: "0 1px 2px 0 rgb(43 46 52 / 0.04), 0 1px 3px 0 rgb(43 46 52 / 0.06)",
+        "card-hover": "0 8px 20px -4px rgb(43 46 52 / 0.12), 0 3px 8px -3px rgb(43 46 52 / 0.08)",
+        glass: "0 8px 30px -12px rgb(43 46 52 / 0.22), 0 1px 1px 0 rgb(255 255 255 / 0.4) inset",
+        glow: "0 0 0 1px rgb(228 31 37 / 0.08), 0 8px 24px -8px rgb(228 31 37 / 0.35)",
       },
       keyframes: {
         "fade-in": {
@@ -57,14 +74,23 @@ const config: Config = {
           "0%": { backgroundPosition: "-468px 0" },
           "100%": { backgroundPosition: "468px 0" },
         },
+        float: {
+          "0%, 100%": { transform: "translate(0, 0) scale(1)" },
+          "50%": { transform: "translate(2%, -3%) scale(1.05)" },
+        },
       },
       animation: {
-        "fade-in": "fade-in 0.25s ease-out",
+        "fade-in": "fade-in 0.35s cubic-bezier(0.22,1,0.36,1)",
         shimmer: "shimmer 1.4s ease-in-out infinite",
+        float: "float 14s ease-in-out infinite",
+      },
+      transitionTimingFunction: {
+        glass: "cubic-bezier(0.22, 1, 0.36, 1)",
       },
       borderRadius: {
         xl: "0.875rem",
         "2xl": "1.25rem",
+        "3xl": "1.75rem",
       },
     },
   },

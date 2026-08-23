@@ -5,6 +5,7 @@ import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
+import { CardGlass } from "@/components/ui/card";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -28,57 +29,75 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-brand-50/60 to-slate-50 px-4">
-      <div className="w-full max-w-sm animate-fade-in">
-        <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-600 text-lg font-bold text-white shadow-lg shadow-brand-600/25">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-ink px-4">
+      {/* Sfondo: blob di colore sfocati che respirano lentamente, stile hero Apple */}
+      <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute -left-32 -top-32 h-[32rem] w-[32rem] animate-float rounded-full bg-brand-600/40 blur-[110px]" />
+        <div
+          className="absolute -bottom-40 -right-24 h-[36rem] w-[36rem] animate-float rounded-full bg-navigation-500/30 blur-[120px]"
+          style={{ animationDelay: "-6s" }}
+        />
+        <div
+          className="absolute left-1/3 top-1/4 h-72 w-72 animate-float rounded-full bg-growth-500/20 blur-[100px]"
+          style={{ animationDelay: "-11s" }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-ink/10 via-transparent to-ink/60" />
+      </div>
+
+      <div className="relative w-full max-w-sm">
+        <div className="mb-8 animate-rise-in text-center" style={{ animationDelay: "0.05s" }}>
+          <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-xl font-bold text-brand-600 shadow-glow">
             M
           </div>
-          <h1 className="text-lg font-semibold text-slate-900">Radar Finanza Agevolata</h1>
-          <p className="mt-1 text-sm text-slate-400">Accesso riservato al team MOLO 4.0</p>
+          <h1 className="text-xl font-semibold tracking-tight text-white">Radar Finanza Agevolata</h1>
+          <p className="mt-1.5 text-sm text-white/50">Accesso riservato al team MOLO 4.0</p>
         </div>
 
-        <form
-          onSubmit={handleSubmit}
-          className="rounded-2xl border border-slate-200 bg-white p-6 shadow-card"
+        <CardGlass className="animate-rise-in p-6" style={{ animationDelay: "0.12s" }}>
+          <form onSubmit={handleSubmit}>
+            <div className="mb-4">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="nome@molo4punto0.it"
+                className="bg-white/80"
+              />
+            </div>
+            <div className="mb-5">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                autoComplete="current-password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="bg-white/80"
+              />
+            </div>
+
+            {errore && (
+              <p className="mb-4 rounded-xl bg-brand-50 px-3 py-2 text-sm text-brand-700 animate-fade-in">
+                {errore}
+              </p>
+            )}
+
+            <Button type="submit" className="w-full" size="lg" disabled={caricamento}>
+              {caricamento ? "Accesso in corso…" : "Accedi"}
+            </Button>
+          </form>
+        </CardGlass>
+
+        <p
+          className="mt-6 animate-rise-in text-center text-xs text-white/40"
+          style={{ animationDelay: "0.18s" }}
         >
-          <div className="mb-4">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              autoComplete="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="nome@molo4punto0.it"
-            />
-          </div>
-          <div className="mb-5">
-            <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              type="password"
-              autoComplete="current-password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-            />
-          </div>
-
-          {errore && (
-            <p className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600 animate-fade-in">
-              {errore}
-            </p>
-          )}
-
-          <Button type="submit" className="w-full" size="lg" disabled={caricamento}>
-            {caricamento ? "Accesso in corso…" : "Accedi"}
-          </Button>
-        </form>
-
-        <p className="mt-6 text-center text-xs text-slate-400">
           Il matching mostrato in dashboard è sempre indicativo e non garantisce l&apos;ammissione ad alcuna misura.
         </p>
       </div>

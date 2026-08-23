@@ -13,41 +13,48 @@ export const STATO_LABEL: Record<StatoMisura, string> = {
   SCADUTA: "Scaduta",
 };
 
-/** Colori pensati per essere immediatamente riconoscibili, in linea con
- * la scala `status.*` definita in tailwind.config.ts */
+/**
+ * Colori pensati per essere immediatamente riconoscibili, sulla palette
+ * MOLO 4.0 (vedi src/app/globals.css):
+ *  - FUTURA     → navigation (informativo, "in arrivo")
+ *  - ATTIVA     → growth (positivo, aperta ora) — testo sempre ink, mai bianco
+ *  - IN_SCADENZA→ urgency (un ambra dedicato: il rosso PRIMARY resta riservato
+ *                 alle CTA, non va confuso con uno stato di dashboard)
+ *  - SCADUTA    → ink neutro e desaturato (chiusa, fuori gioco)
+ */
 export const STATO_COLOR: Record<StatoMisura, { bg: string; text: string; dot: string; border: string }> = {
   FUTURA: {
-    bg: "bg-violet-50",
-    text: "text-violet-700",
-    dot: "bg-violet-500",
-    border: "border-violet-200",
+    bg: "bg-navigation-50",
+    text: "text-navigation-700",
+    dot: "bg-navigation-500",
+    border: "border-navigation-500/20",
   },
   ATTIVA: {
-    bg: "bg-emerald-50",
-    text: "text-emerald-700",
-    dot: "bg-emerald-500",
-    border: "border-emerald-200",
+    bg: "bg-growth-50",
+    text: "text-growth-700",
+    dot: "bg-growth-500",
+    border: "border-growth-500/25",
   },
   IN_SCADENZA: {
-    bg: "bg-amber-50",
-    text: "text-amber-700",
-    dot: "bg-amber-500",
-    border: "border-amber-200",
+    bg: "bg-urgency-50",
+    text: "text-urgency-700",
+    dot: "bg-urgency-500",
+    border: "border-urgency-500/25",
   },
   SCADUTA: {
-    bg: "bg-slate-100",
-    text: "text-slate-500",
-    dot: "bg-slate-400",
-    border: "border-slate-200",
+    bg: "bg-ink/5",
+    text: "text-ink/50",
+    dot: "bg-ink/35",
+    border: "border-ink/10",
   },
 };
 
 /** Colori pieni (per barre della timeline Gantt, che necessitano contrasto) */
 export const STATO_TIMELINE_COLOR: Record<StatoMisura, { bg: string; border: string }> = {
-  FUTURA: { bg: "#8B5CF6", border: "#6D28D9" },
-  ATTIVA: { bg: "#22C55E", border: "#15803D" },
-  IN_SCADENZA: { bg: "#F59E0B", border: "#B45309" },
-  SCADUTA: { bg: "#94A3B8", border: "#64748B" },
+  FUTURA: { bg: "#198FD9", border: "#0f6da3" },
+  ATTIVA: { bg: "#65BD7D", border: "#3f9c59" },
+  IN_SCADENZA: { bg: "#F5A623", border: "#c97d0a" },
+  SCADUTA: { bg: "#9CA0AA", border: "#6b6e78" },
 };
 
 export function calcolaStatoMisura(

@@ -8,6 +8,24 @@ Nessuna chiamata AI/LLM in nessun punto: il matching prospect↔misura è un
 motore a regole (confronto di campi strutturati), a costo zero. **Il
 matching è sempre indicativo, mai una garanzia di ammissione.**
 
+### Design system
+
+Palette e "Liquid Glass" definiti in `src/app/globals.css` (blocco `:root`)
+e mappati su Tailwind in `tailwind.config.ts` — ricolorare il prodotto
+significa editare quelle variabili, non i componenti:
+
+- `--brand-600` = `#E41F25` (PRIMARY, pulsanti pieni) / `--brand-700`/`800` = `#C91F12` (hover e active)
+- `--ink` = `#2B2E34` (titoli, testo, superfici scure)
+- `--growth-*` = `#65BD7D` (progressi/risultati — testo sempre `ink`, mai bianco sopra)
+- `--navigation-*` = `#198FD9` (info/orientamento)
+- `--surface-alt` = `#F9F9FB` (sfondo pagina)
+- `--urgency-*`: ambra introdotto per lo stato "in scadenza", per non
+  confonderlo visivamente con il rosso PRIMARY riservato alle CTA
+
+Superfici traslucide (`.glass-surface`, `.glass-surface-solid` in
+`globals.css`, o `<CardGlass>` in `src/components/ui/card.tsx`) per
+sidebar, header mobile, drawer e login.
+
 ## Stato del progetto
 
 Questa build copre la **Fase 1** del piano a fasi concordato:
