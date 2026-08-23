@@ -1,0 +1,205 @@
+// Radar Finanza Agevolata — MOLO 4.0
+// Schema dati Fase 1. Vedi docs/radar-finanza-agevolata.md per le note di progetto.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Autenticazione team MOLO (accesso unico, nessuna gerarchia di ruoli in v1)
+// ---------------------------------------------------------------------------
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Fonti monitorate — tabella estensibile: una nuova fonte = una nuova riga +
+// un nuovo parser registrato in src/lib/monitoring/parsers/registry.ts.
+// ---------------------------------------------------------------------------
+enum LivelloFonte {
+  L1_NAZIONALE
+  L2_REGIONALE
+  L3_CAMERALE
+}
+
+enum EsitoScan {
+  SUCCESSO
+  ERRORE
+  BLOCCATO_ROBOTS
+}
+
+model Fonte {
+  id                   String       @id @default(cuid())
+  nome                 String
+  livello              LivelloFonte
+  regione              String? // valorizzato per fonti regionali/camerali
+  url                  String
+  /// Chiave del parser dedicato in src/lib/monitoring/parsers/registry.ts
+  parserKey            String       @unique
+  attiva               Boolean      @default(true)
+  frequenzaOreScan     Int          @default(24)
+  ultimaScansioneAt    DateTime?
+  ultimoEsitoScan      EsitoScan?
+  ultimoHashContenuto  String?
+  note                 String?
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+
+  misure   Misura[]
+  scanLogs ScanLog[]
+}
+
+model ScanLog {
+  id               String     @id @default(cuid())
+  fonteId          String
+  fonte            Fonte      @relation(fields: [fonteId], references: [id], onDelete: Cascade)
+  avviatoAt        DateTime   @default(now())
+  completatoAt     DateTime?
+  esito            EsitoScan
+  misureNuove      Int        @default(0)
+  misureAggiornate Int        @default(0)
+  messaggioErrore  String?
+
+  @@index([fonteId, avviatoAt])
+}
+
+// ---------------------------------------------------------------------------
+// Misure di finanza agevolata
+// ---------------------------------------------------------------------------
+enum CategoriaMisura {
+  NAZIONALE
+  REGIONALE
+  CAMERALE
+  FISCALE
+}
+
+enum TipoAgevolazione {
+  FONDO_PERDUTO
+  TASSO_ZERO
+  CREDITO_IMPOSTA
+  MISTO
+}
+
+enum TipoValoreMisura {
+  IMPORTO_FISSO
+  RANGE
+  PERCENTUALE
+}
+
+enum StatoPratica {
+  CANDIDATA
+  AMMESSA
+  RESPINTA
+  CONTRATTO_ATTIVO
+}
+
+model Misura {
+  id                String           @id @default(cuid())
+  titolo            String
+  ente              String
+  categoria         CategoriaMisura
+  descrizioneBreve  String
+  descrizioneEstesa String
+
+  tipoAgevolazione TipoAgevolazione
+  tipoValore       TipoValoreMisura
+  importoFisso     Decimal?         @db.Decimal(14, 2)
+  importoMin       Decimal?         @db.Decimal(14, 2)
+  importoMax       Decimal?         @db.Decimal(14, 2)
+  percentuale      Decimal?         @db.Decimal(5, 2)
+  tettoMassimo     Decimal?         @db.Decimal(14, 2)
+
+  dataApertura DateTime
+  dataScadenza DateTime
+
+  // Requisiti di ammissibilità — lo stato (Futura/Attiva/In scadenza/Scaduta)
+  // NON è persistito: viene sempre ricalcolato da src/lib/misure/stato.ts
+  // a partire da dataApertura/dataScadenza.
+  atecoAmmessi   String[] @default([])
+  atecoEsclusi   String[] @default([])
+  regioniAmmesse String[] @default([]) // [] = tutte le regioni
+  fatturatoMin   Decimal? @db.Decimal(14, 2)
+  fatturatoMax   Decimal? @db.Decimal(14, 2)
+  dipendentiMin  Int?
+  dipendentiMax  Int?
+  altriRequisiti String?
+
+  documentiRichiesti  String[] @default([])
+  linkFonteUfficiale  String
+  noteInterne         String?
+
+  // Provenienza
+  rilevataAutomaticamente Boolean @default(false)
+  fonteId                 String?
+  fonte                   Fonte?  @relation(fields: [fonteId], references: [id], onDelete: SetNull)
+  /// Identificatore stabile assegnato dal parser (es. hash dell'URL di dettaglio)
+  /// usato per capire se una scansione ha già visto questa misura.
+  externalId              String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Cumulabilità: relazione simmetrica misura<->misura, sempre scritta e letta
+  // in entrambe le direzioni da src/lib/misure/cumulabilita.ts
+  cumulabiliComeA Misura[] @relation("Cumulabilita")
+  cumulabiliComeB Misura[] @relation("Cumulabilita")
+
+  matches ProspectMisuraMatch[]
+
+  @@unique([fonteId, externalId])
+  @@index([categoria])
+  @@index([dataScadenza])
+  @@index([dataApertura])
+}
+
+// ---------------------------------------------------------------------------
+// Prospect (anagrafiche importate, es. da export Atoka)
+// ---------------------------------------------------------------------------
+model Prospect {
+  id               String   @id @default(cuid())
+  ragioneSociale   String
+  piva             String   @unique
+  ateco            String?
+  regione          String?
+  provincia        String?
+  fatturato        Decimal? @db.Decimal(14, 2)
+  numeroDipendenti Int?
+  email            String?
+  telefono         String?
+  fonteImport      String? // es. nome file CSV importato
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  matches ProspectMisuraMatch[]
+
+  @@index([regione])
+  @@index([ateco])
+}
+
+// Relazione calcolata dal motore di matching — ricreata ad ogni ricalcolo.
+model ProspectMisuraMatch {
+  id           String       @id @default(cuid())
+  prospectId   String
+  prospect     Prospect     @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+  misuraId     String
+  misura       Misura       @relation(fields: [misuraId], references: [id], onDelete: Cascade)
+  calcolatoAt  DateTime     @default(now())
+  /// Elenco leggibile dei criteri soddisfatti (trasparenza sul perché del match)
+  criteriEsito String[]     @default([])
+  statoPratica StatoPratica @default(CANDIDATA)
+
+  @@unique([prospectId, misuraId])
+  @@index([misuraId])
+  @@index([prospectId])
+}

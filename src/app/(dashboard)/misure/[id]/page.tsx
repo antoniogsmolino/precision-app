@@ -1,0 +1,326 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import { Card, CardBody } from "@/components/ui/card";
+import { StatoBadge, Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Skeleton } from "@/components/ui/skeleton";
+import { calcolaStatoMisura, giorniAllaScadenza } from "@/lib/misure/stato";
+import { formatValoreMisura, CATEGORIA_LABEL, TIPO_AGEVOLAZIONE_LABEL } from "@/lib/misure/valore";
+
+const dataFmt = new Intl.DateTimeFormat("it-IT", { day: "2-digit", month: "long", year: "numeric" });
+const euro = new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
+
+interface MatchConProspect {
+  id: string;
+  criteriEsito: string[];
+  prospect: {
+    id: string;
+    ragioneSociale: string;
+    piva: string;
+    regione: string | null;
+    ateco: string | null;
+    fatturato: number | string | null;
+  };
+}
+
+interface MisuraDettaglio {
+  id: string;
+  titolo: string;
+  ente: string;
+  categoria: string;
+  descrizioneBreve: string;
+  descrizioneEstesa: string;
+  tipoAgevolazione: string;
+  tipoValore: "IMPORTO_FISSO" | "RANGE" | "PERCENTUALE";
+  importoFisso: number | string | null;
+  importoMin: number | string | null;
+  importoMax: number | string | null;
+  percentuale: number | string | null;
+  tettoMassimo: number | string | null;
+  dataApertura: string;
+  dataScadenza: string;
+  atecoAmmessi: string[];
+  atecoEsclusi: string[];
+  regioniAmmesse: string[];
+  fatturatoMin: number | string | null;
+  fatturatoMax: number | string | null;
+  dipendentiMin: number | null;
+  dipendentiMax: number | null;
+  altriRequisiti: string | null;
+  documentiRichiesti: string[];
+  linkFonteUfficiale: string;
+  noteInterne: string | null;
+  rilevataAutomaticamente: boolean;
+  fonte: { nome: string } | null;
+  cumulabili: { id: string; titolo: string }[];
+}
+
+export default function MisuraDettaglioPage() {
+  const { id } = useParams<{ id: string }>();
+  const [misura, setMisura] = useState<MisuraDettaglio | null>(null);
+  const [prospectIdonei, setProspectIdonei] = useState<MatchConProspect[] | null>(null);
+  const [errore, setErrore] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch(`/api/misure/${id}`)
+      .then((r) => {
+        if (!r.ok) throw new Error("Misura non trovata");
+        return r.json();
+      })
+      .then(setMisura)
+      .catch((e) => setErrore(e.message));
+
+    fetch(`/api/misure/${id}/prospect-idonei`)
+      .then((r) => (r.ok ? r.json() : []))
+      .then(setProspectIdonei)
+      .catch(() => setProspectIdonei([]));
+  }, [id]);
+
+  if (errore) {
+    return (
+      <div className="p-6">
+        <EmptyState title="Misura non trovata" description={errore} />
+      </div>
+    );
+  }
+
+  if (!misura) return <DettaglioSkeleton />;
+
+  const stato = calcolaStatoMisura(new Date(misura.dataApertura), new Date(misura.dataScadenza));
+  const giorni = giorniAllaScadenza(new Date(misura.dataScadenza));
+
+  return (
+    <div className="mx-auto max-w-4xl px-6 py-8">
+      <Link href="/dashboard" className="mb-4 inline-flex items-center gap-1 text-sm text-slate-400 hover:text-slate-600">
+        ← Torna al radar
+      </Link>
+
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="text-sm font-medium text-slate-400">{misura.ente}</p>
+          <h1 className="mt-1 text-2xl font-semibold text-slate-900">{misura.titolo}</h1>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <StatoBadge stato={stato} />
+            <Badge className="border-slate-200 bg-slate-50 text-slate-600">{CATEGORIA_LABEL[misura.categoria]}</Badge>
+            <Badge className="border-slate-200 bg-slate-50 text-slate-600">
+              {TIPO_AGEVOLAZIONE_LABEL[misura.tipoAgevolazione]}
+            </Badge>
+            {misura.rilevataAutomaticamente && (
+              <Badge className="border-brand-100 bg-brand-50 text-brand-600">
+                Rilevata da {misura.fonte?.nome ?? "monitoraggio automatico"}
+              </Badge>
+            )}
+          </div>
+        </div>
+        <div className="flex shrink-0 gap-2">
+          <Link href={`/misure/${misura.id}/modifica`}>
+            <Button variant="secondary">Segnala errore / Modifica</Button>
+          </Link>
+        </div>
+      </div>
+
+      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <StatTile label="Valore" value={formatValoreMisura(misura)} />
+        <StatTile
+          label="Finestra"
+          value={`${dataFmt.format(new Date(misura.dataApertura))} → ${dataFmt.format(new Date(misura.dataScadenza))}`}
+        />
+        <StatTile
+          label="Scadenza"
+          value={stato === "SCADUTA" ? "Scaduta" : stato === "FUTURA" ? "Non ancora aperta" : `Tra ${giorni} giorni`}
+        />
+      </div>
+
+      <Card className="mt-6">
+        <CardBody className="pt-5">
+          <SectionTitle>Descrizione</SectionTitle>
+          <p className="text-[13px] leading-relaxed text-slate-500">{misura.descrizioneBreve}</p>
+          <p className="mt-2 whitespace-pre-line text-[13px] leading-relaxed text-slate-600">{misura.descrizioneEstesa}</p>
+        </CardBody>
+      </Card>
+
+      <Card className="mt-4">
+        <CardBody className="pt-5">
+          <SectionTitle>Requisiti di ammissibilità</SectionTitle>
+          <dl className="grid grid-cols-1 gap-3 text-[13px] sm:grid-cols-2">
+            <Requisito label="ATECO ammessi" value={misura.atecoAmmessi.length ? misura.atecoAmmessi.join(", ") : "Nessuna restrizione"} />
+            <Requisito label="ATECO esclusi" value={misura.atecoEsclusi.length ? misura.atecoEsclusi.join(", ") : "—"} />
+            <Requisito label="Regioni ammesse" value={misura.regioniAmmesse.length ? misura.regioniAmmesse.join(", ") : "Tutte"} />
+            <Requisito
+              label="Fatturato"
+              value={
+                misura.fatturatoMin || misura.fatturatoMax
+                  ? `${misura.fatturatoMin ? euro.format(Number(misura.fatturatoMin)) : "—"} – ${misura.fatturatoMax ? euro.format(Number(misura.fatturatoMax)) : "—"}`
+                  : "Nessun limite"
+              }
+            />
+            <Requisito
+              label="Dipendenti"
+              value={
+                misura.dipendentiMin || misura.dipendentiMax
+                  ? `${misura.dipendentiMin ?? "—"} – ${misura.dipendentiMax ?? "—"}`
+                  : "Nessun limite"
+              }
+            />
+          </dl>
+          {misura.altriRequisiti && (
+            <p className="mt-3 rounded-lg bg-slate-50 p-3 text-[13px] text-slate-600">{misura.altriRequisiti}</p>
+          )}
+        </CardBody>
+      </Card>
+
+      {misura.documentiRichiesti.length > 0 && (
+        <Card className="mt-4">
+          <CardBody className="pt-5">
+            <SectionTitle>Documenti richiesti</SectionTitle>
+            <ul className="space-y-1.5">
+              {misura.documentiRichiesti.map((doc, i) => (
+                <li key={i} className="flex items-center gap-2 text-[13px] text-slate-600">
+                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-brand-400" />
+                  {doc}
+                </li>
+              ))}
+            </ul>
+          </CardBody>
+        </Card>
+      )}
+
+      {misura.cumulabili.length > 0 && (
+        <Card className="mt-4">
+          <CardBody className="pt-5">
+            <SectionTitle>Misure cumulabili</SectionTitle>
+            <div className="flex flex-wrap gap-2">
+              {misura.cumulabili.map((c) => (
+                <Link key={c.id} href={`/misure/${c.id}`}>
+                  <Badge className="border-brand-100 bg-brand-50 text-brand-700 hover:bg-brand-100">{c.titolo}</Badge>
+                </Link>
+              ))}
+            </div>
+          </CardBody>
+        </Card>
+      )}
+
+      <Card className="mt-4">
+        <CardBody className="pt-5">
+          <div className="flex items-center justify-between">
+            <SectionTitle>
+              Prospect idonei {prospectIdonei && `(${prospectIdonei.length})`}
+            </SectionTitle>
+            {prospectIdonei && prospectIdonei.length > 0 && (
+              <a href={`/api/misure/${misura.id}/prospect-idonei?format=csv`}>
+                <Button variant="secondary" size="sm">Esporta CSV</Button>
+              </a>
+            )}
+          </div>
+          <p className="mb-3 text-xs text-slate-400">
+            Match indicativo calcolato dal motore a regole: non è una garanzia di ammissione.
+          </p>
+
+          {prospectIdonei === null && (
+            <div className="space-y-2">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+          )}
+
+          {prospectIdonei && prospectIdonei.length === 0 && (
+            <EmptyState title="Nessun prospect idoneo al momento" description="Importa o aggiorna l'anagrafica prospect per trovare nuove corrispondenze." />
+          )}
+
+          {prospectIdonei && prospectIdonei.length > 0 && (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-[13px]">
+                <thead>
+                  <tr className="border-b border-slate-100 text-xs uppercase tracking-wide text-slate-400">
+                    <th className="py-2 pr-3 font-medium">Ragione sociale</th>
+                    <th className="py-2 pr-3 font-medium">P.IVA</th>
+                    <th className="py-2 pr-3 font-medium">Regione</th>
+                    <th className="py-2 pr-3 font-medium">ATECO</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {prospectIdonei.map((m) => (
+                    <tr key={m.id} className="border-b border-slate-50 last:border-0">
+                      <td className="py-2 pr-3 font-medium text-slate-700">
+                        <Link href={`/prospect?evidenzia=${m.prospect.id}`} className="hover:text-brand-600">
+                          {m.prospect.ragioneSociale}
+                        </Link>
+                      </td>
+                      <td className="py-2 pr-3 text-slate-500">{m.prospect.piva}</td>
+                      <td className="py-2 pr-3 text-slate-500">{m.prospect.regione ?? "—"}</td>
+                      <td className="py-2 pr-3 text-slate-500">{m.prospect.ateco ?? "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardBody>
+      </Card>
+
+      <div className="mt-4 flex flex-wrap items-center gap-3 text-[13px]">
+        <a
+          href={misura.linkFonteUfficiale}
+          target="_blank"
+          rel="noreferrer"
+          className="font-medium text-brand-600 hover:underline"
+        >
+          Vai alla fonte ufficiale ↗
+        </a>
+      </div>
+
+      {misura.noteInterne && (
+        <Card className="mt-4 border-amber-200 bg-amber-50/40">
+          <CardBody className="pt-5">
+            <SectionTitle>Note interne</SectionTitle>
+            <p className="whitespace-pre-line text-[13px] text-slate-600">{misura.noteInterne}</p>
+          </CardBody>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return <h2 className="mb-2.5 text-[13px] font-semibold uppercase tracking-wide text-slate-400">{children}</h2>;
+}
+
+function StatTile({ label, value }: { label: string; value: string }) {
+  return (
+    <Card>
+      <CardBody className="pt-5">
+        <p className="text-xs font-medium text-slate-400">{label}</p>
+        <p className="mt-1 text-[15px] font-semibold text-slate-900">{value}</p>
+      </CardBody>
+    </Card>
+  );
+}
+
+function Requisito({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <dt className="text-xs font-medium text-slate-400">{label}</dt>
+      <dd className="mt-0.5 text-slate-700">{value}</dd>
+    </div>
+  );
+}
+
+function DettaglioSkeleton() {
+  return (
+    <div className="mx-auto max-w-4xl space-y-4 px-6 py-8">
+      <Skeleton className="h-4 w-24" />
+      <Skeleton className="h-8 w-2/3" />
+      <div className="grid grid-cols-3 gap-4">
+        <Skeleton className="h-20" />
+        <Skeleton className="h-20" />
+        <Skeleton className="h-20" />
+      </div>
+      <Skeleton className="h-40 w-full" />
+      <Skeleton className="h-40 w-full" />
+    </div>
+  );
+}
