@@ -109,6 +109,24 @@ tre correzioni fatte sui dati emersi dal primo giro:
   filtrati superano la soglia di leggibilità. Aggiunta anche una ricerca
   libera per titolo/ente.
 
+**Correzione dei dati già in produzione scritti prima di questo fix**: le
+misure inserite dal primo giro di scan (quando il filtro era ancora troppo
+permissivo) restano in tabella con `scadenzaStimata = false` di default e
+possono includere voci non pertinenti (news/eventi scambiati per bandi).
+Due endpoint di manutenzione una tantum, protetti dallo stesso
+`CRON_SECRET` dell'endpoint di seed, sistemano i dati già scritti senza
+dover ripetere gli scan:
+
+1. `/api/setup/backfill-scadenza-stimata?secret=...` — marca come "stimata"
+   ogni misura automatica la cui finestra è esattamente apertura+1 anno
+   (il segnaposto usato quando il parser non trova una data vera).
+   Idempotente, va richiamato una volta dopo il deploy di questo fix.
+2. `/api/setup/pulisci-misure-non-pertinenti?secret=...` — **anteprima**
+   (nessuna scrittura) delle misure automatiche che, con le regole di
+   rilevanza attuali, non passerebbero più il filtro e non hanno nessun
+   prospect in match. Aggiungere `&esegui=true` per cancellarle davvero,
+   solo dopo aver controllato l'anteprima.
+
 Non ancora in questa build (fasi successive, da confermare una alla volta):
 frontend pubblico "Finanza Agevolata Match" (Fase 3), le restanti ~40 Camere
 di Commercio oltre al batch attuale (Fase 4), pipeline kanban (Fase 5

@@ -170,7 +170,7 @@ const ESTENSIONI_FILE_DIRETTO = /\.(pdf|jpg|jpeg|png|zip|rar|doc|docx|xls|xlsx)(
 /** Segnale positivo forte: il link punta a un percorso tipico di sezione bandi/avvisi. */
 const PERCORSO_BANDO = /\/(bandi|bando|avvisi|avviso|contributi|incentivi|agevolazioni|finanziamenti)\//i;
 
-function punteggioVoceBando(titolo: string, href: string): number {
+export function punteggioVoceBando(titolo: string, href: string): number {
   const t = titolo.toLowerCase();
   let punti = 0;
 
@@ -198,7 +198,7 @@ function punteggioVoceBando(titolo: string, href: string): number {
  * possono comunque contenere una data o superare la lunghezza minima)
  * finivano scambiate per misure — con titoli chiaramente non pertinenti.
  */
-const SOGLIA_VOCE_BANDO = 3;
+export const SOGLIA_VOCE_BANDO = 3;
 
 /**
  * Scansiona TUTTI i link della pagina e tiene solo quelli con punteggio
