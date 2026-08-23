@@ -57,6 +57,44 @@ export async function eseguiSeed(prisma: PrismaClient) {
       url: "https://www.cciaasudestsicilia.it/bandi",
       parserKey: "cciaa-sud-est-sicilia",
     },
+    // --- Fase 2: fonti regionali (Livello 2). Sicilia come priorità
+    // (territorio MOLO), poi le regioni a maggiore densità di imprese.
+    // Le restanti Regioni si aggiungono progressivamente (vedi README).
+    {
+      nome: "Regione Sicilia — Bandi",
+      livello: "L2_REGIONALE" as const,
+      regione: "Sicilia",
+      url: "https://www.regione.sicilia.it/la-regione-informa/bandi",
+      parserKey: "regione-sicilia",
+    },
+    {
+      nome: "Regione Lombardia — Bandi",
+      livello: "L2_REGIONALE" as const,
+      regione: "Lombardia",
+      url: "https://www.regione.lombardia.it/wps/portal/istituzionale/HP/bandi",
+      parserKey: "regione-lombardia",
+    },
+    {
+      nome: "Regione Lazio — Bandi",
+      livello: "L2_REGIONALE" as const,
+      regione: "Lazio",
+      url: "https://www.regione.lazio.it/bandi-e-avvisi",
+      parserKey: "regione-lazio",
+    },
+    {
+      nome: "Regione Campania — Bandi",
+      livello: "L2_REGIONALE" as const,
+      regione: "Campania",
+      url: "https://www.regione.campania.it/regione/it/tags/bandi",
+      parserKey: "regione-campania",
+    },
+    {
+      nome: "Regione Puglia — Bandi",
+      livello: "L2_REGIONALE" as const,
+      regione: "Puglia",
+      url: "https://www.regione.puglia.it/bandi",
+      parserKey: "regione-puglia",
+    },
   ];
 
   for (const f of fonti) {
@@ -66,7 +104,8 @@ export async function eseguiSeed(prisma: PrismaClient) {
 
   // --- Dati dimostrativi, utili per vedere subito la dashboard piena --
   const misureDemoCount = await prisma.misura.count({ where: { rilevataAutomaticamente: false } });
-  if (misureDemoCount === 0) {
+  const primoSeed = misureDemoCount === 0;
+  if (primoSeed) {
     const oggi = new Date();
     const giorni = (n: number) => new Date(oggi.getTime() + n * 24 * 60 * 60 * 1000);
 
@@ -235,6 +274,16 @@ export async function eseguiSeed(prisma: PrismaClient) {
   log.push(
     `match ricalcolati: ${esito.matchTrovati} match tra ${esito.prospectValutati} prospect e ${esito.misureValutate} misure`,
   );
+
+  // Solo al primo seed: valorizza qualche stato pratica di esempio, così il
+  // pannello KPI non parte vuoto. Nei seed successivi non si tocca nulla —
+  // lo stato pratica è lavoro del team, mai sovrascritto da un ricalcolo.
+  if (primoSeed) {
+    const matchDemo = await prisma.prospectMisuraMatch.findMany({ take: 3, orderBy: { calcolatoAt: "asc" } });
+    if (matchDemo[0]) await prisma.prospectMisuraMatch.update({ where: { id: matchDemo[0].id }, data: { statoPratica: "CONTRATTO_ATTIVO" } });
+    if (matchDemo[1]) await prisma.prospectMisuraMatch.update({ where: { id: matchDemo[1].id }, data: { statoPratica: "AMMESSA" } });
+    if (matchDemo.length > 0) log.push("stato pratica di esempio impostato su alcuni match dimostrativi");
+  }
 
   return { log, emailAdmin };
 }

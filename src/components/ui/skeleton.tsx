@@ -1,7 +1,27 @@
 import clsx from "clsx";
+import type { CSSProperties } from "react";
 
-export function Skeleton({ className }: { className?: string }) {
-  return <div className={clsx("skeleton animate-shimmer rounded-md", className)} />;
+export function Skeleton({ className, style }: { className?: string; style?: CSSProperties }) {
+  return <div className={clsx("skeleton animate-shimmer rounded-md", className)} style={style} />;
+}
+
+export function SkeletonTimeline() {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-card">
+      <div className="mb-3 flex items-center justify-between">
+        <Skeleton className="h-4 w-64" />
+        <Skeleton className="h-6 w-40" />
+      </div>
+      <div className="space-y-3">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="flex items-center gap-3">
+            <Skeleton className="h-3 w-20" />
+            <Skeleton className="h-8 rounded-lg" style={{ width: `${30 + ((i * 17) % 50)}%` }} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 export function SkeletonCard() {

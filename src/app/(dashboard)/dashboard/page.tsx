@@ -1,13 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FiltriBar } from "@/components/dashboard/filtri-bar";
-import { TimelineGantt } from "@/components/dashboard/timeline-gantt";
+import { TimelineGantt, type TimelineGanttHandle } from "@/components/dashboard/timeline-gantt";
+import { TimelineToolbar } from "@/components/dashboard/timeline-toolbar";
+import { AlertScadenze } from "@/components/dashboard/alert-scadenze";
+import { KpiPanel } from "@/components/dashboard/kpi-panel";
 import { MisuraCard, type MisuraCardData } from "@/components/dashboard/misura-card";
 import { Button } from "@/components/ui/button";
-import { SkeletonCard } from "@/components/ui/skeleton";
+import { SkeletonCard, SkeletonTimeline } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { STATO_TIMELINE_COLOR, STATO_LABEL, type StatoMisura } from "@/lib/misure/stato";
 import { FILTRI_VUOTI, filtraMisure, type FiltriMisure } from "@/lib/misure/filtri";
@@ -17,6 +20,7 @@ type Vista = "timeline" | "elenco";
 
 export default function DashboardPage() {
   const router = useRouter();
+  const timelineRef = useRef<TimelineGanttHandle>(null);
   const [misure, setMisure] = useState<MisuraCardData[] | null>(null);
   const [fonti, setFonti] = useState<{ id: string; nome: string }[]>([]);
   const [errore, setErrore] = useState<string | null>(null);
@@ -60,6 +64,13 @@ export default function DashboardPage() {
         </div>
       </header>
 
+      {misure && (
+        <div className="px-6 pt-6">
+          <AlertScadenze misure={misure} />
+          <KpiPanel />
+        </div>
+      )}
+
       <FiltriBar filtri={filtri} onChange={setFiltri} fontiDisponibili={fonti} />
 
       <div className="flex-1 px-6 py-6">
@@ -67,7 +78,8 @@ export default function DashboardPage() {
           <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">{errore}</div>
         )}
 
-        {!misure && !errore && (
+        {!misure && !errore && vista === "timeline" && <SkeletonTimeline />}
+        {!misure && !errore && vista === "elenco" && (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {Array.from({ length: 8 }).map((_, i) => (
               <SkeletonCard key={i} />
@@ -101,8 +113,11 @@ export default function DashboardPage() {
 
         {misure && misureFiltrate.length > 0 && vista === "timeline" && (
           <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-card">
-            <Legenda />
-            <TimelineGantt misure={misureFiltrate} onSelect={(id) => router.push(`/misure/${id}`)} />
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+              <Legenda />
+              <TimelineToolbar timelineRef={timelineRef} />
+            </div>
+            <TimelineGantt ref={timelineRef} misure={misureFiltrate} onSelect={(id) => router.push(`/misure/${id}`)} />
           </div>
         )}
 
@@ -139,7 +154,7 @@ function ToggleVista({ label, attivo, onClick }: { label: string; attivo: boolea
 function Legenda() {
   const stati: StatoMisura[] = ["FUTURA", "ATTIVA", "IN_SCADENZA", "SCADUTA"];
   return (
-    <div className="mb-3 flex flex-wrap items-center gap-4 px-1">
+    <div className="flex flex-wrap items-center gap-4 px-1">
       {stati.map((s) => (
         <div key={s} className="flex items-center gap-1.5 text-xs text-slate-500">
           <span

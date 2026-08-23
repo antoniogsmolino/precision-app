@@ -20,5 +20,7 @@ export const config = {
     "/api/misure/:path*",
     "/api/prospect/:path*",
     "/api/fonti/:path*",
+    "/api/matches/:path*",
+    "/api/kpi/:path*",
   ],
 };

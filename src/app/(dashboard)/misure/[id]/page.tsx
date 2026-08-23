@@ -8,15 +8,24 @@ import { StatoBadge, Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Select } from "@/components/ui/input";
 import { calcolaStatoMisura, giorniAllaScadenza } from "@/lib/misure/stato";
 import { formatValoreMisura, CATEGORIA_LABEL, TIPO_AGEVOLAZIONE_LABEL } from "@/lib/misure/valore";
 
 const dataFmt = new Intl.DateTimeFormat("it-IT", { day: "2-digit", month: "long", year: "numeric" });
 const euro = new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 
+const STATO_PRATICA_LABEL: Record<string, string> = {
+  CANDIDATA: "Candidata",
+  AMMESSA: "Ammessa",
+  RESPINTA: "Respinta",
+  CONTRATTO_ATTIVO: "Contratto attivo",
+};
+
 interface MatchConProspect {
   id: string;
   criteriEsito: string[];
+  statoPratica: string;
   prospect: {
     id: string;
     ragioneSociale: string;
@@ -64,6 +73,17 @@ export default function MisuraDettaglioPage() {
   const [misura, setMisura] = useState<MisuraDettaglio | null>(null);
   const [prospectIdonei, setProspectIdonei] = useState<MatchConProspect[] | null>(null);
   const [errore, setErrore] = useState<string | null>(null);
+
+  async function aggiornaStatoPratica(matchId: string, statoPratica: string) {
+    setProspectIdonei((prev) =>
+      prev ? prev.map((m) => (m.id === matchId ? { ...m, statoPratica } : m)) : prev,
+    );
+    await fetch(`/api/matches/${matchId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ statoPratica }),
+    });
+  }
 
   useEffect(() => {
     fetch(`/api/misure/${id}`)
@@ -240,6 +260,7 @@ export default function MisuraDettaglioPage() {
                     <th className="py-2 pr-3 font-medium">P.IVA</th>
                     <th className="py-2 pr-3 font-medium">Regione</th>
                     <th className="py-2 pr-3 font-medium">ATECO</th>
+                    <th className="py-2 pr-3 font-medium">Stato pratica</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -253,6 +274,19 @@ export default function MisuraDettaglioPage() {
                       <td className="py-2 pr-3 text-slate-500">{m.prospect.piva}</td>
                       <td className="py-2 pr-3 text-slate-500">{m.prospect.regione ?? "—"}</td>
                       <td className="py-2 pr-3 text-slate-500">{m.prospect.ateco ?? "—"}</td>
+                      <td className="py-2 pr-3">
+                        <Select
+                          className="h-8 py-0 text-xs"
+                          value={m.statoPratica}
+                          onChange={(e) => aggiornaStatoPratica(m.id, e.target.value)}
+                        >
+                          {Object.entries(STATO_PRATICA_LABEL).map(([v, l]) => (
+                            <option key={v} value={v}>
+                              {l}
+                            </option>
+                          ))}
+                        </Select>
+                      </td>
                     </tr>
                   ))}
                 </tbody>

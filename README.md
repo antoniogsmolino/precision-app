@@ -26,10 +26,26 @@ Questa build copre la **Fase 1** del piano a fasi concordato:
   sia alla timeline sia alla vista elenco/card
 - Login email/password (NextAuth, accesso unico per il team)
 
+**Fase 2** aggiunge:
+
+- Fonti regionali (Livello 2): Sicilia (priorità, territorio MOLO) +
+  Lombardia, Lazio, Campania, Puglia. Le altre 15 Regioni si aggiungono
+  progressivamente con lo stesso pattern — vedi
+  `src/lib/monitoring/parsers/regionale/factory.ts`: una nuova regione è
+  un file di ~8 righe che configura la factory, più la riga `Fonte` a DB.
+- Timeline Gantt rifinita: zoom, preset di intervallo (3 mesi/6 mesi/1
+  anno/tutto), skeleton di caricamento dedicato.
+- Sezione "Scadenze imminenti" in home dashboard (misure che scadono
+  entro 7/14/30 giorni, ordinate per urgenza).
+- Pannello KPI (aziende candidate / ammesse / contratti attivi, per
+  misura e in totale), con stato pratica aggiornabile dalla card
+  dettaglio misura. Il ricalcolo dei match ora preserva lo stato pratica
+  impostato dal team invece di azzerarlo ad ogni modifica.
+
 Non ancora in questa build (fasi successive, da confermare una alla volta):
-Livello 2 regionale (20 Regioni), alert scadenze e pannello KPI (Fase 2),
 frontend pubblico "Finanza Agevolata Match" (Fase 3), Livello 3 camerale
-oltre Sicilia (Fase 4), pipeline kanban (Fase 5 opzionale).
+oltre Sicilia (Fase 4), pipeline kanban (Fase 5 opzionale), le restanti 15
+fonti regionali di Livello 2.
 
 ### Nota importante sui parser di monitoraggio
 

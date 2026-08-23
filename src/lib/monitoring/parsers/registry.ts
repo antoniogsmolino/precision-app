@@ -4,6 +4,11 @@ import { parserInvitalia } from "./invitalia";
 import { parserUnioncamerePid } from "./unioncamere-pid";
 import { parserSimest } from "./simest";
 import { parserCciaaSudEstSicilia } from "./cciaa-sud-est-sicilia";
+import { parserRegioneSicilia } from "./regionale/sicilia";
+import { parserRegioneLombardia } from "./regionale/lombardia";
+import { parserRegioneLazio } from "./regionale/lazio";
+import { parserRegioneCampania } from "./regionale/campania";
+import { parserRegionePuglia } from "./regionale/puglia";
 
 /**
  * Registro centrale dei parser di fonte. Per aggiungere una nuova fonte:
@@ -22,6 +27,11 @@ export const REGISTRO_PARSER: Record<string, ParserFonte> = {
   "unioncamere-pid": parserUnioncamerePid,
   simest: parserSimest,
   "cciaa-sud-est-sicilia": parserCciaaSudEstSicilia,
+  "regione-sicilia": parserRegioneSicilia,
+  "regione-lombardia": parserRegioneLombardia,
+  "regione-lazio": parserRegioneLazio,
+  "regione-campania": parserRegioneCampania,
+  "regione-puglia": parserRegionePuglia,
 };
 
 export function risolviParser(parserKey: string): ParserFonte | null {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import { DataSet } from "vis-data";
 import { Timeline } from "vis-timeline/standalone";
 import "vis-timeline/styles/vis-timeline-graph2d.min.css";
@@ -21,15 +21,33 @@ export interface MisuraTimelineItem {
   tettoMassimo?: number | string | null;
 }
 
-export function TimelineGantt({
-  misure,
-  onSelect,
-}: {
-  misure: MisuraTimelineItem[];
-  onSelect: (id: string) => void;
-}) {
+export interface TimelineGanttHandle {
+  zoomIn: () => void;
+  zoomOut: () => void;
+  fit: () => void;
+  impostaFinestraMesi: (mesi: number) => void;
+}
+
+const UN_GIORNO_MS = 1000 * 60 * 60 * 24;
+
+export const TimelineGantt = forwardRef<
+  TimelineGanttHandle,
+  { misure: MisuraTimelineItem[]; onSelect: (id: string) => void }
+>(function TimelineGantt({ misure, onSelect }, ref) {
   const containerRef = useRef<HTMLDivElement>(null);
   const timelineRef = useRef<Timeline | null>(null);
+
+  useImperativeHandle(ref, () => ({
+    zoomIn: () => timelineRef.current?.zoomIn(0.4),
+    zoomOut: () => timelineRef.current?.zoomOut(0.4),
+    fit: () => timelineRef.current?.fit({ animation: true }),
+    impostaFinestraMesi: (mesi: number) => {
+      const oggi = new Date();
+      const inizio = new Date(oggi.getTime() - 21 * UN_GIORNO_MS);
+      const fine = new Date(oggi.getTime() + mesi * 30 * UN_GIORNO_MS);
+      timelineRef.current?.setWindow(inizio, fine, { animation: true });
+    },
+  }));
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -74,6 +92,8 @@ export function TimelineGantt({
       groupOrder: "order",
       moveable: true,
       selectable: true,
+      start: new Date(Date.now() - 21 * UN_GIORNO_MS),
+      end: new Date(Date.now() + 180 * UN_GIORNO_MS),
     };
 
     const timeline = new Timeline(containerRef.current, items, gruppi, options);
@@ -90,7 +110,7 @@ export function TimelineGantt({
   }, [misure]);
 
   return <div ref={containerRef} className="h-[520px] w-full" />;
-}
+});
 
 function escapeHtml(s: string) {
   return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
