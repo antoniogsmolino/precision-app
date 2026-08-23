@@ -62,6 +62,11 @@ npm run seed                          # utente team + fonti + dati dimostrativi
 npm run dev
 ```
 
+`npm run build` esegue anche `prisma migrate deploy`: richiede sempre
+`DATABASE_URL` valorizzata (in locale come in produzione), e su un deploy
+Vercel applica automaticamente lo schema al database ad ogni build — non
+serve lanciare le migrazioni a mano dopo il primo deploy.
+
 L'utente creato dal seed è stampato in console (default
 `team@molo4punto0.it` / `molo4punto0!` — cambiala dopo il primo accesso, o
 sovrascrivi `SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD` prima di seedare).
