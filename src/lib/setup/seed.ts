@@ -43,6 +43,16 @@ export async function eseguiSeed(prisma: PrismaClient) {
       parserKey: "incentivi-gov-it",
     },
     {
+      // Segnalata dal team: sezione incentivi del sito istituzionale del
+      // ministero, dominio diverso dal portale aggregatore sopra —
+      // possibile sovrapposizione parziale di contenuti, tenute entrambe
+      // per non perdere una misura presente solo su una delle due.
+      nome: "MIMIT — Incentivi (sito ministero)",
+      livello: "L1_NAZIONALE" as const,
+      url: "https://www.mimit.gov.it/it/incentivi",
+      parserKey: "mimit-incentivi",
+    },
+    {
       // URL corretto verificato manualmente dal team (quello precedente,
       // /cosa-facciamo, è una pagina istituzionale generica senza elenco
       // bandi) — vedi anche la seconda fonte Invitalia poco sotto.

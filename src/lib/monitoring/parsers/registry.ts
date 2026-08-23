@@ -1,5 +1,6 @@
 import type { ParserFonte } from "../types";
 import { parserIncentiviGovIt } from "./incentivi-gov-it";
+import { parserMimitIncentivi } from "./mimit-incentivi";
 import { parserInvitalia } from "./invitalia";
 import { parserUnioncamerePid } from "./unioncamere-pid";
 import { parserSimest } from "./simest";
@@ -25,6 +26,7 @@ import { PARSER_CAMERALI } from "./camerale/registro";
  */
 export const REGISTRO_PARSER: Record<string, ParserFonte> = {
   "incentivi-gov-it": parserIncentiviGovIt,
+  "mimit-incentivi": parserMimitIncentivi,
   invitalia: parserInvitalia,
   // Stesso parser di "invitalia" (generico, non dipende da un URL fisso):
   // due fonti perché il sito Invitalia ha due sezioni elenco distinte
