@@ -108,7 +108,7 @@ export default function ImportaProspectPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl px-6 py-8">
+    <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-8">
       <Link href="/prospect" className="mb-4 inline-flex items-center gap-1 text-sm text-slate-400 hover:text-slate-600">
         ← Torna ai prospect
       </Link>
@@ -149,16 +149,16 @@ export default function ImportaProspectPage() {
 
             <div className="space-y-2.5">
               {intestazioni.map((intestazione) => (
-                <div key={intestazione} className="flex items-center gap-3 rounded-lg border border-slate-100 p-2.5">
+                <div key={intestazione} className="flex flex-col gap-2 rounded-lg border border-slate-100 p-2.5 sm:flex-row sm:items-center sm:gap-3">
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-[13px] font-medium text-slate-700">{intestazione}</p>
                     <p className="truncate text-xs text-slate-400">
                       es. {righeGrezze[0]?.[intestazione] || "—"}
                     </p>
                   </div>
-                  <span className="text-slate-300">→</span>
+                  <span className="hidden text-slate-300 sm:inline">→</span>
                   <Select
-                    className="w-56"
+                    className="w-full sm:w-56"
                     value={mappatura[intestazione] ?? ""}
                     onChange={(e) => setMappatura((m) => ({ ...m, [intestazione]: e.target.value }))}
                   >
@@ -274,21 +274,26 @@ function Stepper({ step }: { step: Step }) {
   const indiceAttuale = passi.findIndex((p) => p.key === step);
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-1.5 sm:gap-2">
       {passi.map((p, i) => (
-        <div key={p.key} className="flex items-center gap-2">
+        <div key={p.key} className="flex items-center gap-1.5 sm:gap-2">
           <div
             className={
-              "flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-semibold " +
+              "flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold " +
               (i <= indiceAttuale ? "bg-brand-600 text-white" : "bg-slate-100 text-slate-400")
             }
           >
             {i + 1}
           </div>
-          <span className={"text-xs font-medium " + (i <= indiceAttuale ? "text-slate-700" : "text-slate-400")}>
+          <span
+            className={
+              "hidden text-xs font-medium sm:inline " +
+              (i <= indiceAttuale ? "text-slate-700" : "text-slate-400")
+            }
+          >
             {p.label}
           </span>
-          {i < passi.length - 1 && <div className="h-px w-8 bg-slate-200" />}
+          {i < passi.length - 1 && <div className="h-px w-4 shrink-0 bg-slate-200 sm:w-8" />}
         </div>
       ))}
     </div>

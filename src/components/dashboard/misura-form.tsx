@@ -240,7 +240,7 @@ export function MisuraForm({
             </div>
           )}
           {valori.tipoValore === "RANGE" && (
-            <div className="mt-4 grid grid-cols-2 gap-4">
+            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="Importo minimo (€)">
                 <Input type="number" min={0} value={valori.importoMin} onChange={(e) => set("importoMin", e.target.value)} />
               </Field>
@@ -250,7 +250,7 @@ export function MisuraForm({
             </div>
           )}
           {valori.tipoValore === "PERCENTUALE" && (
-            <div className="mt-4 grid grid-cols-2 gap-4">
+            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="Percentuale (%)">
                 <Input type="number" min={0} max={100} value={valori.percentuale} onChange={(e) => set("percentuale", e.target.value)} />
               </Field>
@@ -260,7 +260,7 @@ export function MisuraForm({
             </div>
           )}
 
-          <div className="mt-4 grid grid-cols-2 gap-4">
+          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Data apertura" required>
               <Input type="date" value={valori.dataApertura} onChange={(e) => set("dataApertura", e.target.value)} required />
             </Field>
@@ -316,7 +316,7 @@ export function MisuraForm({
             </Field>
           </div>
 
-          <div className="mt-4 grid grid-cols-2 gap-4">
+          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Fatturato minimo (€)">
               <Input type="number" min={0} value={valori.fatturatoMin} onChange={(e) => set("fatturatoMin", e.target.value)} />
             </Field>

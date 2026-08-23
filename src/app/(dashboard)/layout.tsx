@@ -2,14 +2,17 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth/options";
 import { SidebarNav } from "@/components/dashboard/sidebar-nav";
 import { SignOutButton } from "@/components/dashboard/sign-out-button";
+import { MobileNav } from "@/components/dashboard/mobile-nav";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession(authOptions);
 
   return (
     <div className="min-h-screen bg-slate-50">
+      <MobileNav nome={session?.user?.name} email={session?.user?.email} />
+
       <div className="flex">
-        <aside className="sticky top-0 flex h-screen w-60 shrink-0 flex-col border-r border-slate-200 bg-white">
+        <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-slate-200 bg-white md:flex">
           <div className="flex items-center gap-2.5 px-5 py-5">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-sm font-bold text-white">
               M
@@ -33,7 +36,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
           </div>
         </aside>
 
-        <main className="min-w-0 flex-1">{children}</main>
+        <main className="min-w-0 flex-1 overflow-x-hidden">{children}</main>
       </div>
     </div>
   );

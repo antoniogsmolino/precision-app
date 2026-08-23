@@ -109,7 +109,7 @@ export const TimelineGantt = forwardRef<
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [misure]);
 
-  return <div ref={containerRef} className="h-[520px] w-full" />;
+  return <div ref={containerRef} className="h-[380px] w-full sm:h-[520px]" />;
 });
 
 function escapeHtml(s: string) {

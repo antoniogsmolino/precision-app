@@ -37,15 +37,15 @@ export function AlertScadenze({ misure }: { misure: MisuraAlert[] }) {
   }));
 
   return (
-    <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50/50 p-5 animate-fade-in">
+    <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50/50 p-4 animate-fade-in sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-400 text-white">
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-amber-400 text-white">
             <BellIcon className="h-3.5 w-3.5" />
           </span>
           <h2 className="text-[15px] font-semibold text-amber-900">Scadenze imminenti</h2>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {conteggi.map(({ soglia, count }) => (
             <span
               key={soglia}

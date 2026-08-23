@@ -51,7 +51,7 @@ export function MultiSelectFilter({
       </button>
 
       {aperto && (
-        <div className="absolute left-0 top-full z-20 mt-1.5 max-h-72 w-56 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-card-hover animate-fade-in">
+        <div className="absolute left-0 top-full z-20 mt-1.5 max-h-72 w-56 max-w-[85vw] overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-card-hover animate-fade-in">
           {selected.length > 0 && (
             <button
               type="button"

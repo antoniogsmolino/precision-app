@@ -46,10 +46,10 @@ export default function DashboardPage() {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="flex items-center justify-between border-b border-slate-100 bg-white px-6 py-5">
+      <header className="flex flex-col gap-3 border-b border-slate-100 bg-white px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-5">
         <div>
           <h1 className="text-lg font-semibold text-slate-900">Radar misure</h1>
-          <p className="mt-0.5 text-sm text-slate-400">
+          <p className="mt-0.5 hidden text-sm text-slate-400 sm:block">
             Tutte le misure di finanza agevolata monitorate, in un colpo d&apos;occhio.
           </p>
         </div>
@@ -58,14 +58,16 @@ export default function DashboardPage() {
             <ToggleVista label="Timeline" attivo={vista === "timeline"} onClick={() => setVista("timeline")} />
             <ToggleVista label="Elenco" attivo={vista === "elenco"} onClick={() => setVista("elenco")} />
           </div>
-          <Link href="/misure/nuova">
-            <Button>+ Nuova misura</Button>
+          <Link href="/misure/nuova" className="shrink-0">
+            <Button size="sm" className="sm:h-9 sm:px-4 sm:text-sm">
+              + Nuova misura
+            </Button>
           </Link>
         </div>
       </header>
 
       {misure && (
-        <div className="px-6 pt-6">
+        <div className="px-4 pt-4 sm:px-6 sm:pt-6">
           <AlertScadenze misure={misure} />
           <KpiPanel />
         </div>
@@ -73,7 +75,7 @@ export default function DashboardPage() {
 
       <FiltriBar filtri={filtri} onChange={setFiltri} fontiDisponibili={fonti} />
 
-      <div className="flex-1 px-6 py-6">
+      <div className="flex-1 px-4 py-4 sm:px-6 sm:py-6">
         {errore && (
           <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">{errore}</div>
         )}
@@ -112,8 +114,8 @@ export default function DashboardPage() {
         )}
 
         {misure && misureFiltrate.length > 0 && vista === "timeline" && (
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-card">
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <div className="rounded-2xl border border-slate-200 bg-white p-2.5 shadow-card sm:p-4">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2 px-1.5 sm:px-0">
               <Legenda />
               <TimelineToolbar timelineRef={timelineRef} />
             </div>

@@ -27,7 +27,7 @@ export function FiltriBar({
   ];
 
   return (
-    <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 bg-white px-6 py-3.5">
+    <div className="flex items-center gap-2 overflow-x-auto border-b border-slate-100 bg-white px-4 py-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:shrink-0 sm:flex-wrap sm:overflow-x-visible sm:px-6 sm:py-3.5">
       <MultiSelectFilter
         label="Regione"
         options={ITALIA_REGIONI.map((r) => ({ value: r, label: r }))}

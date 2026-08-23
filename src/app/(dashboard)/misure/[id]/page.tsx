@@ -114,7 +114,7 @@ export default function MisuraDettaglioPage() {
   const giorni = giorniAllaScadenza(new Date(misura.dataScadenza));
 
   return (
-    <div className="mx-auto max-w-4xl px-6 py-8">
+    <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6 sm:py-8">
       <Link href="/dashboard" className="mb-4 inline-flex items-center gap-1 text-sm text-slate-400 hover:text-slate-600">
         ← Torna al radar
       </Link>
@@ -345,7 +345,7 @@ function Requisito({ label, value }: { label: string; value: string }) {
 
 function DettaglioSkeleton() {
   return (
-    <div className="mx-auto max-w-4xl space-y-4 px-6 py-8">
+    <div className="mx-auto max-w-4xl space-y-4 px-4 py-6 sm:px-6 sm:py-8">
       <Skeleton className="h-4 w-24" />
       <Skeleton className="h-8 w-2/3" />
       <div className="grid grid-cols-3 gap-4">

@@ -53,7 +53,7 @@ export default function FontiPage() {
   }
 
   return (
-    <div className="px-6 py-8">
+    <div className="px-4 py-6 sm:px-6 sm:py-8">
       <div className="mb-2">
         <h1 className="text-lg font-semibold text-slate-900">Fonti monitorate</h1>
         <p className="mt-0.5 text-sm text-slate-400">
