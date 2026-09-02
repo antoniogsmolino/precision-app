@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select } from "@/components/ui/input";
+import { TrovaAziendeOpenApi } from "@/components/dashboard/trova-aziende-openapi";
 import { calcolaStatoMisura, giorniAllaScadenza } from "@/lib/misure/stato";
 import { formatValoreMisura, CATEGORIA_LABEL, TIPO_AGEVOLAZIONE_LABEL } from "@/lib/misure/valore";
 
@@ -86,6 +87,13 @@ export default function MisuraDettaglioPage() {
     });
   }
 
+  function ricaricaProspectIdonei() {
+    fetch(`/api/misure/${id}/prospect-idonei`)
+      .then((r) => (r.ok ? r.json() : []))
+      .then(setProspectIdonei)
+      .catch(() => setProspectIdonei([]));
+  }
+
   useEffect(() => {
     fetch(`/api/misure/${id}`)
       .then((r) => {
@@ -95,10 +103,8 @@ export default function MisuraDettaglioPage() {
       .then(setMisura)
       .catch((e) => setErrore(e.message));
 
-    fetch(`/api/misure/${id}/prospect-idonei`)
-      .then((r) => (r.ok ? r.json() : []))
-      .then(setProspectIdonei)
-      .catch(() => setProspectIdonei([]));
+    ricaricaProspectIdonei();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   if (errore) {
@@ -240,6 +246,8 @@ export default function MisuraDettaglioPage() {
           </CardBody>
         </Card>
       )}
+
+      <TrovaAziendeOpenApi misuraId={misura.id} onCompletato={ricaricaProspectIdonei} />
 
       <Card className="mt-4">
         <CardBody className="pt-5">

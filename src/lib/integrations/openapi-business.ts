@@ -1,49 +1,36 @@
 /**
- * Integrazione con openapi.it (prodotto "Business Information") — risolve
- * una Partita IVA in anagrafica azienda (ragione sociale, ATECO, sede) per
- * il frontend pubblico "Finanza Agevolata Match" (Fase 3).
+ * Risoluzione di una Partita IVA in anagrafica azienda per il frontend
+ * pubblico "Finanza Agevolata Match" (Fase 3) — un'azienda che conosce già
+ * la propria P.IVA e vuole sapere quali bandi può richiedere.
  *
- * ATTENZIONE — MAPPATURA DA VERIFICARE CONTRO UNA RISPOSTA REALE.
- * Non ho accesso diretto a Internet da questo ambiente (stesso limite di
- * tutta questa sessione — vedi i parser di scansione fonti, calibrati solo
- * con HTML reale mandato dal team), quindi non ho potuto testare la vera
- * forma della risposta di questa API. La mappatura sotto (`mappaRisposta`)
- * è una struttura ragionevole per un prodotto di business information
- * italiano, MA va confermata: se il primo tentativo reale in produzione
- * torna con ragione sociale/ATECO/regione vuoti nonostante una risposta
- * HTTP 200, il problema è quasi certamente qui — mandami un esempio reale
- * di risposta JSON (anche con dati anonimizzati, basta la struttura) e la
- * sistemo subito, stessa cosa fatta per i parser dei siti delle fonti.
+ * Riusa lo STESSO adapter OpenAPI (IT-advanced, l'unico endpoint che nelle
+ * specifiche del team accetta una P.IVA come identificativo — Search da
+ * sola restituisce solo ID) e la STESSA cache aziende del motore di
+ * prospecting automatico (src/lib/prospecting/) usato per i bandi: una
+ * P.IVA cercata qui e poi trovata anche da una ricerca automatica su un
+ * bando (o viceversa) non genera una seconda chiamata Advanced a
+ * pagamento, esattamente come richiesto dalle specifiche (§1, "una nuova
+ * associazione azienda–bando non deve provocare automaticamente una nuova
+ * chiamata Advanced").
  *
- * `OPENAPI_IT_BASE_URL`: la request va verso `${BASE_URL}/{piva}` — di
- * default punta a `https://company.openapi.com/IT-start`, l'endpoint del
- * prodotto "Company" di OpenAPI.com più comunemente usato per questo tipo
- * di lookup. Se il vostro account usa un endpoint diverso (es. un dominio
- * dedicato, o `/business-information/{piva}` invece di `/IT-start/{piva}`),
- * impostate `OPENAPI_IT_BASE_URL` di conseguenza — nessun redeploy di
- * codice necessario, solo la env var.
+ * Prima di questa versione il codice puntava a un endpoint indovinato
+ * (`IT-start`, mai confermato) — ora usa `IT-advanced/{piva}`, l'endpoint
+ * che le specifiche di funzionamento del team confermano esplicitamente
+ * (§7). La FORMA esatta della risposta resta comunque da verificare
+ * contro l'API reale (vedi mappaRispostaAdvanced in
+ * src/lib/prospecting/advanced-mapper.ts) — nessun accesso di rete da
+ * questo ambiente.
  */
+import { chiamaAdvanced } from "@/lib/prospecting/openapi-client";
+import { mappaRispostaAdvanced } from "@/lib/prospecting/advanced-mapper";
+import { trovaInCacheValida, salvaSnapshotAzienda, type DatiAziendaRisolti } from "@/lib/prospecting/cache";
+import { prenotaSpesa } from "@/lib/prospecting/budget";
 
-const BASE_URL = process.env.OPENAPI_IT_BASE_URL ?? "https://company.openapi.com/IT-start";
-const TIMEOUT_MS = 15_000;
-
-export interface DatiAziendaRisolti {
-  ragioneSociale: string;
-  piva: string;
-  ateco: string | null;
-  regione: string | null;
-  provincia: string | null;
-  /** Non sempre disponibile da un semplice lookup anagrafico — molti piani
-   * "business information" danno solo dati di registro (ragione sociale,
-   * ATECO, sede), non bilancio. Se manca, il motore di matching lo tratta
-   * comunque come "da verificare", mai come motivo di esclusione. */
-  fatturato: number | null;
-  numeroDipendenti: number | null;
-}
+export type { DatiAziendaRisolti };
 
 export type EsitoRicercaAzienda =
   | { ok: true; dati: DatiAziendaRisolti }
-  | { ok: false; motivo: "PIVA_NON_TROVATA" | "ERRORE_API" | "NON_CONFIGURATO" };
+  | { ok: false; motivo: "PIVA_NON_TROVATA" | "ERRORE_API" | "NON_CONFIGURATO" | "BUDGET_ESAURITO" };
 
 function normalizzaPiva(piva: string): string {
   return piva.replace(/\s+/g, "").toUpperCase();
@@ -55,86 +42,55 @@ export function pivaFormalmenteValida(piva: string): boolean {
 }
 
 /**
- * Legge i campi che servono da una risposta la cui struttura esatta non è
- * ancora stata verificata contro l'API reale — prova più percorsi
- * plausibili per ogni campo (nomi diversi usati da prodotti simili) invece
- * di assumerne uno solo, così un'unica discrepanza di naming non fa
- * fallire tutto il resto. Non inventa MAI un valore: se un campo non si
- * trova in nessuno dei percorsi provati resta null.
- */
-function mappaRisposta(raw: any, piva: string): DatiAziendaRisolti | null {
-  const corpo = raw?.data ?? raw?.result ?? raw ?? {};
-
-  const ragioneSociale: string | undefined =
-    corpo.companyName ?? corpo.businessName ?? corpo.ragioneSociale ?? corpo.name ?? corpo.denominazione;
-  if (!ragioneSociale) return null; // senza nemmeno la ragione sociale, la risposta non è utilizzabile
-
-  const atecoRaw =
-    corpo.atecoClassification?.ateco2007?.code ??
-    corpo.ateco?.code ??
-    corpo.atecoCode ??
-    corpo.codiceAteco ??
-    corpo.ateco ??
-    null;
-
-  const sede = corpo.registeredOffice ?? corpo.sedeLegale ?? corpo.address ?? {};
-  const regione: string | null = sede.region ?? sede.regione ?? corpo.region ?? corpo.regione ?? null;
-  const provincia: string | null = sede.province ?? sede.provincia ?? corpo.province ?? corpo.provincia ?? null;
-
-  const fatturatoRaw =
-    corpo.revenue ?? corpo.fatturato ?? corpo.balanceSheet?.revenue ?? corpo.financials?.revenue ?? null;
-  const dipendentiRaw =
-    corpo.employees ?? corpo.numeroDipendenti ?? corpo.companySize?.employees ?? corpo.employeesCount ?? null;
-
-  return {
-    ragioneSociale: String(ragioneSociale).trim(),
-    piva: normalizzaPiva(piva),
-    ateco: atecoRaw ? String(atecoRaw).trim() : null,
-    regione: regione ? String(regione).trim() : null,
-    provincia: provincia ? String(provincia).trim() : null,
-    fatturato: fatturatoRaw != null && Number.isFinite(Number(fatturatoRaw)) ? Number(fatturatoRaw) : null,
-    numeroDipendenti: dipendentiRaw != null && Number.isFinite(Number(dipendentiRaw)) ? Number(dipendentiRaw) : null,
-  };
-}
-
-/**
- * Risolve una Partita IVA in anagrafica azienda tramite openapi.it.
+ * Risolve una Partita IVA in anagrafica azienda. Controlla prima la cache
+ * (nessuna spesa se i dati sono già stati acquisiti ed entro la TTL, da
+ * qualunque flusso — anche una ricerca automatica su un bando), altrimenti
+ * chiama Advanced spendendo dal budget condiviso.
+ *
  * Non lancia mai eccezioni verso il chiamante: ogni fallimento (chiave non
- * configurata, rete, piva non trovata, risposta non interpretabile) torna
- * come esito esplicito, mai come dato inventato.
+ * configurata, budget esaurito, rete, piva non trovata, risposta non
+ * interpretabile) torna come esito esplicito, mai come dato inventato.
  */
 export async function recuperaDatiAzienda(piva: string): Promise<EsitoRicercaAzienda> {
-  const apiKey = process.env.OPENAPI_IT_API_KEY;
-  if (!apiKey) {
+  if (!process.env.OPENAPI_IT_API_KEY) {
     return { ok: false, motivo: "NON_CONFIGURATO" };
   }
 
   const pivaNorm = normalizzaPiva(piva);
 
-  try {
-    const res = await fetch(`${BASE_URL}/${pivaNorm}`, {
-      headers: {
-        Authorization: apiKey,
-        Accept: "application/json",
+  const inCache = await trovaInCacheValida({ piva: pivaNorm });
+  if (inCache) {
+    return {
+      ok: true,
+      dati: {
+        ragioneSociale: inCache.ragioneSociale,
+        piva: inCache.piva,
+        openApiId: inCache.openApiId,
+        ateco: inCache.ateco,
+        regione: inCache.regione,
+        provincia: inCache.provincia,
+        fatturato: inCache.fatturato != null ? Number(inCache.fatturato) : null,
+        numeroDipendenti: inCache.numeroDipendenti,
+        pec: inCache.pec,
       },
-      signal: AbortSignal.timeout(TIMEOUT_MS),
-    });
-
-    if (res.status === 404) {
-      return { ok: false, motivo: "PIVA_NON_TROVATA" };
-    }
-    if (!res.ok) {
-      return { ok: false, motivo: "ERRORE_API" };
-    }
-
-    const json = await res.json();
-    const dati = mappaRisposta(json, pivaNorm);
-    if (!dati) {
-      return { ok: false, motivo: "PIVA_NON_TROVATA" };
-    }
-
-    return { ok: true, dati };
-  } catch {
-    return { ok: false, motivo: "ERRORE_API" };
+    };
   }
+
+  const prenotazione = await prenotaSpesa({ tipo: "ADVANCED", unita: 1 });
+  if (!prenotazione.concesso) {
+    return { ok: false, motivo: "BUDGET_ESAURITO" };
+  }
+
+  const esito = await chiamaAdvanced(pivaNorm);
+  if (!esito.ok || !esito.dati) {
+    return { ok: false, motivo: esito.status === 404 ? "PIVA_NON_TROVATA" : "ERRORE_API" };
+  }
+
+  const dati = mappaRispostaAdvanced(esito.dati, pivaNorm);
+  if (!dati) {
+    return { ok: false, motivo: "PIVA_NON_TROVATA" };
+  }
+
+  await salvaSnapshotAzienda(dati, "Finanza Agevolata Match (pubblico)");
+  return { ok: true, dati };
 }

@@ -43,6 +43,7 @@ export async function POST(req: NextRequest) {
       PIVA_NON_TROVATA: "Non abbiamo trovato nessuna azienda con questa Partita IVA. Controlla che sia corretta.",
       ERRORE_API: "Il servizio di verifica Partita IVA non è raggiungibile in questo momento. Riprova tra qualche minuto.",
       NON_CONFIGURATO: "Il servizio di verifica Partita IVA non è ancora configurato.",
+      BUDGET_ESAURITO: "Abbiamo raggiunto il limite di verifiche automatiche per oggi. Riprova domani o contattaci direttamente.",
     };
     return NextResponse.json({ errore: messaggi[esitoRicerca.motivo] }, { status: 422 });
   }

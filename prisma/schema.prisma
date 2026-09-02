@@ -39,35 +39,35 @@ enum EsitoScan {
 }
 
 model Fonte {
-  id                   String       @id @default(cuid())
-  nome                 String
-  livello              LivelloFonte
-  regione              String? // valorizzato per fonti regionali/camerali
-  url                  String
+  id                  String       @id @default(cuid())
+  nome                String
+  livello             LivelloFonte
+  regione             String? // valorizzato per fonti regionali/camerali
+  url                 String
   /// Chiave del parser dedicato in src/lib/monitoring/parsers/registry.ts
-  parserKey            String       @unique
-  attiva               Boolean      @default(true)
-  frequenzaOreScan     Int          @default(24)
-  ultimaScansioneAt    DateTime?
-  ultimoEsitoScan      EsitoScan?
-  ultimoHashContenuto  String?
-  note                 String?
-  createdAt            DateTime     @default(now())
-  updatedAt            DateTime     @updatedAt
+  parserKey           String       @unique
+  attiva              Boolean      @default(true)
+  frequenzaOreScan    Int          @default(24)
+  ultimaScansioneAt   DateTime?
+  ultimoEsitoScan     EsitoScan?
+  ultimoHashContenuto String?
+  note                String?
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
 
   misure   Misura[]
   scanLogs ScanLog[]
 }
 
 model ScanLog {
-  id               String     @id @default(cuid())
+  id               String    @id @default(cuid())
   fonteId          String
-  fonte            Fonte      @relation(fields: [fonteId], references: [id], onDelete: Cascade)
-  avviatoAt        DateTime   @default(now())
+  fonte            Fonte     @relation(fields: [fonteId], references: [id], onDelete: Cascade)
+  avviatoAt        DateTime  @default(now())
   completatoAt     DateTime?
   esito            EsitoScan
-  misureNuove      Int        @default(0)
-  misureAggiornate Int        @default(0)
+  misureNuove      Int       @default(0)
+  misureAggiornate Int       @default(0)
   messaggioErrore  String?
 
   @@index([fonteId, avviatoAt])
@@ -104,7 +104,7 @@ enum StatoPratica {
 }
 
 model Misura {
-  id                String           @id @default(cuid())
+  id                String          @id @default(cuid())
   titolo            String
   ente              String
   categoria         CategoriaMisura
@@ -119,12 +119,12 @@ model Misura {
   percentuale      Decimal?         @db.Decimal(5, 2)
   tettoMassimo     Decimal?         @db.Decimal(14, 2)
 
-  dataApertura DateTime
-  dataScadenza DateTime
+  dataApertura    DateTime
+  dataScadenza    DateTime
   /// true quando dataScadenza è un fallback del parser (nessuna data letta
   /// dalla pagina), non una scadenza confermata sulla fonte — mostrato in UI
   /// come "data da verificare" ed escluso dagli alert di scadenza imminente.
-  scadenzaStimata Boolean @default(false)
+  scadenzaStimata Boolean  @default(false)
 
   // Requisiti di ammissibilità — lo stato (Futura/Attiva/In scadenza/Scaduta)
   // NON è persistito: viene sempre ricalcolato da src/lib/misure/stato.ts
@@ -138,9 +138,9 @@ model Misura {
   dipendentiMax  Int?
   altriRequisiti String?
 
-  documentiRichiesti  String[] @default([])
-  linkFonteUfficiale  String
-  noteInterne         String?
+  documentiRichiesti String[] @default([])
+  linkFonteUfficiale String
+  noteInterne        String?
 
   // Provenienza
   rilevataAutomaticamente Boolean @default(false)
@@ -159,6 +159,9 @@ model Misura {
   cumulabiliComeB Misura[] @relation("Cumulabilita")
 
   matches ProspectMisuraMatch[]
+
+  ricercheProspect RicercaProspectLog[]
+  usoApiOpenApi    ApiUsageLog[]
 
   @@unique([fonteId, externalId])
   @@index([categoria])
@@ -180,7 +183,27 @@ model Prospect {
   numeroDipendenti Int?
   email            String?
   telefono         String?
-  fonteImport      String? // es. nome file CSV importato
+  fonteImport      String? // es. nome file CSV importato, o "OpenAPI IT-advanced"
+
+  /// PEC — il contatto garantito dall'integrazione OpenAPI (email
+  /// ordinaria/telefono/sito NON sono risultati garantiti da quella
+  /// integrazione, vedi src/lib/prospecting). Distinta da `email`, che
+  /// resta il contatto raccolto da CSV o dal form pubblico.
+  pec String?
+
+  /// Identificativo azienda lato OpenAPI (Search può restituire solo
+  /// questo, senza P.IVA ancora nota) — chiave di riconciliazione verso
+  /// la cache, indipendente dalla piva. @unique come richiesto dalla
+  /// cache aziende (§8 delle specifiche): un ID provider non deve mai
+  /// risultare associato a più di un'anagrafica interna.
+  openApiId String? @unique
+
+  /// Data dell'ultima chiamata Advanced riuscita per questa azienda — usata
+  /// per decidere se i dati sono ancora entro la TTL di riutilizzo
+  /// (OPENAPI_ADVANCED_TTL_GIORNI, default 90) prima di richiamare
+  /// Advanced di nuovo. null = mai arricchita via Advanced (solo CSV/form
+  /// pubblico, o solo Search senza arricchimento).
+  datiAcquisitiAt DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -189,6 +212,59 @@ model Prospect {
 
   @@index([regione])
   @@index([ateco])
+}
+
+// ---------------------------------------------------------------------------
+// Prospecting automatico via OpenAPI (Search + Advanced) — sostituisce il
+// caricamento manuale del CSV: dato un bando, cerca le aziende compatibili
+// e arricchisce solo le candidate selezionate, riutilizzando i dati già in
+// cache (vedi Prospect.datiAcquisitiAt/openApiId) tra bandi diversi.
+// ---------------------------------------------------------------------------
+enum TipoChiamataOpenApi {
+  SEARCH
+  ADVANCED
+}
+
+enum EsitoRicercaProspect {
+  SUCCESSO
+  ERRORE
+  BUDGET_ESAURITO
+  IN_CORSO
+}
+
+/// Contabilità di ogni chiamata a pagamento verso OpenAPI — usata per i
+/// guardrail di budget (giornaliero/mensile/per bando) e per mostrare il
+/// costo consuntivato, non solo quello stimato prima del run.
+model ApiUsageLog {
+  id           String              @id @default(cuid())
+  tipo         TipoChiamataOpenApi
+  unita        Int // record Search fatturabili, o 1 per ogni chiamata Advanced
+  costoStimato Decimal             @db.Decimal(10, 4)
+  misuraId     String?
+  misura       Misura?             @relation(fields: [misuraId], references: [id], onDelete: SetNull)
+  creatoAt     DateTime            @default(now())
+
+  @@index([creatoAt])
+  @@index([misuraId])
+}
+
+/// Un run del motore di prospecting per un bando — l'equivalente di ScanLog
+/// per il monitoraggio fonti, ma per la ricerca aziende OpenAPI.
+model RicercaProspectLog {
+  id               String               @id @default(cuid())
+  misuraId         String
+  misura           Misura               @relation(fields: [misuraId], references: [id], onDelete: Cascade)
+  avviataAt        DateTime             @default(now())
+  completataAt     DateTime?
+  esito            EsitoRicercaProspect
+  candidateTrovate Int                  @default(0)
+  aziendeNuove     Int                  @default(0) // arricchite via Advanced in questo run
+  aziendeDaCache   Int                  @default(0) // dati riutilizzati, nessuna nuova chiamata Advanced
+  matchTrovati     Int                  @default(0)
+  costoStimato     Decimal              @default(0) @db.Decimal(10, 4)
+  messaggioErrore  String?
+
+  @@index([misuraId, avviataAt])
 }
 
 // Relazione calcolata dal motore di matching — ricreata ad ogni ricalcolo.

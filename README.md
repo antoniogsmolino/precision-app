@@ -12,21 +12,32 @@ dopo quello a regole — vedi "Filtro di rilevanza AI" più sotto.
 
 ### Design system
 
-Palette e "Liquid Glass" definiti in `src/app/globals.css` (blocco `:root`)
-e mappati su Tailwind in `tailwind.config.ts` — ricolorare il prodotto
+Palette allineata al sito pubblico reale **moloquattropuntozero.it** (non
+più una scelta interna), definita in `src/app/globals.css` (blocco `:root`)
+e mappata su Tailwind in `tailwind.config.ts` — ricolorare il prodotto
 significa editare quelle variabili, non i componenti:
 
-- `--brand-600` = `#E41F25` (PRIMARY, pulsanti pieni) / `--brand-700`/`800` = `#C91F12` (hover e active)
-- `--ink` = `#2B2E34` (titoli, testo, superfici scure)
-- `--growth-*` = `#65BD7D` (progressi/risultati — testo sempre `ink`, mai bianco sopra)
-- `--navigation-*` = `#198FD9` (info/orientamento)
-- `--surface-alt` = `#F9F9FB` (sfondo pagina)
-- `--urgency-*`: ambra introdotto per lo stato "in scadenza", per non
-  confonderlo visivamente con il rosso PRIMARY riservato alle CTA
+- `--brand-600` = `#FF2D16` (PRIMARY reale del sito, `--awb-color7`) /
+  `--brand-700`/`800` = antracite `hsl(220 4% 9%)` (hover/active — il sito
+  reale passa a un fondo scuro in hover, non a un rosso più scuro)
+- `--ink` = `#2B2E34` (titoli, testo, superfici scure — `--awb-color8`)
+- `--growth-*` = `#65BD7D` (`--awb-color4` — testo sempre `ink`, mai bianco sopra)
+- `--navigation-*` = `#198FD9` (`--awb-color5`)
+- `--ocra-*` = `#E4A858` (`--awb-custom_color_1`, terzo accento per varietà nelle card)
+- `--surface-alt` = `#F9F9FB` (`--awb-color2`) / `--surface-muted` = `#F2F3F5` (`--awb-color3`, fondo body del sito reale)
+- `--urgency-*`: ambra non presente sul sito, introdotto per lo stato "in
+  scadenza" per non confonderlo visivamente col rosso PRIMARY (CTA)
+- Font **Poppins** (era Inter — mai usato sul sito pubblico reale)
 
-Superfici traslucide (`.glass-surface`, `.glass-surface-solid` in
-`globals.css`, o `<CardGlass>` in `src/components/ui/card.tsx`) per
-sidebar, header mobile, drawer e login.
+Sidebar desktop della dashboard in stile CRM a due rail scure (icone +
+statistiche/navigazione, vedi `icon-rail.tsx`/`stat-tiles.tsx` in
+`src/components/dashboard/`) ricalcata su una reference fornita dal team e
+ricolorata su questa palette. Superfici traslucide (`.glass-surface`,
+`.glass-surface-solid` in `globals.css`, o `<CardGlass>` in
+`src/components/ui/card.tsx`) restano per login e header mobile.
+`<Card tono="...">` (`chiaro`/`scuro`/`growth`/`navigation`/`ocra`/`brand`)
+per superfici colorate piene — varianti interne al componente, non
+className passata dall'esterno (vedi il commento in `card.tsx` sul perché).
 
 ## Stato del progetto
 
@@ -153,17 +164,24 @@ propria Partita IVA + email, il tool:
    `RESEND_API_KEY` non è configurata, l'utente vede comunque i risultati
    a video, solo senza l'email.
 
-**openapi.it — mappatura da verificare contro una risposta reale.** Non ho
+Usa lo **stesso adapter OpenAPI e la stessa cache aziende** del motore di
+prospecting automatico (sezione sotto): `IT-advanced/{piva}` — l'unico
+endpoint che, per le specifiche fornite dal team, accetta una Partita IVA
+come identificativo diretto. Una P.IVA cercata qui e poi ritrovata da una
+ricerca automatica su un bando (o viceversa) non genera una seconda
+chiamata Advanced a pagamento.
+
+**Mappatura della risposta da verificare contro un caso reale.** Non ho
 accesso alla rete pubblica da questo ambiente (stesso limite dei parser di
-monitoraggio, vedi sotto), quindi la forma esatta della risposta JSON di
-`business-information` non ha potuto essere testata — `mappaRisposta` in
-`openapi-business.ts` prova più nomi di campo plausibili per ogni valore
-(mai inventa un dato: se non trova nessun percorso valido per un campo
-resta `null`), ma se in produzione la ricerca torna con ragione sociale/
-ATECO/regione vuoti nonostante una risposta 200, il problema è quasi
-certamente lì — un esempio reale di risposta (anche con dati anonimizzati)
-basta a correggere la mappatura in pochi minuti, stesso procedimento già
-usato per calibrare i parser delle fonti con HTML reale.
+monitoraggio, vedi sotto), quindi la forma esatta dei campi nella risposta
+di Advanced non ha potuto essere testata — `mappaRispostaAdvanced` in
+`src/lib/prospecting/advanced-mapper.ts` prova più nomi di campo plausibili
+per ogni valore (mai inventa un dato: se non trova nessun percorso valido
+per un campo resta `null`), ma se in produzione la ricerca torna con
+ragione sociale/ATECO/regione/PEC vuoti nonostante una risposta 200, il
+problema è quasi certamente lì — un esempio reale di risposta (anche con
+dati anonimizzati) basta a correggere la mappatura in pochi minuti, stesso
+procedimento già usato per calibrare i parser delle fonti con HTML reale.
 
 Da notare: un lookup anagrafico da Partita IVA in genere NON include
 fatturato/numero dipendenti (serve un prodotto "bilanci" separato, non
@@ -176,6 +194,63 @@ Variabili d'ambiente da impostare (vedi `.env.example`): `OPENAPI_IT_API_KEY`
 inventa dati), `RESEND_API_KEY` + `EMAIL_FROM` (email di riepilogo),
 `MOLO_PHONE_NUMBER` + `MOLO_BOOKING_URL` (CTA di contatto mostrata sotto i
 risultati, entrambe opzionali).
+
+### Prospecting automatico via OpenAPI — sostituisce il CSV manuale
+
+Su richiesta esplicita del team, in base al documento "Sonar 4.0 —
+Specifiche di funzionamento" (2 settembre 2026): invece di caricare a mano
+un CSV di prospect, dalla scheda di un bando il team può cercare in
+automatico le aziende compatibili con i suoi requisiti strutturati
+(ATECO, fatturato, dipendenti) tramite **OpenAPI Company** (`IT-search` +
+`IT-advanced`), arricchendo solo le candidate selezionate e riusando una
+cache persistente tra bandi diversi — tutto in `src/lib/prospecting/`.
+
+**Come si usa**: sulla scheda di una misura, il pannello "Trova aziende
+compatibili (OpenAPI)" mostra il budget residuo e il costo massimo stimato
+PRIMA di avviare — il click chiede conferma con quella stima, non parte
+mai da solo. Al termine mostra candidate trovate, quante arricchite ora,
+quante riusate da cache e quanti match risultanti; la lista "Prospect
+idonei" sotto si aggiorna in automatico.
+
+Pezzi principali:
+
+- `openapi-client.ts`: chiamate HTTP a `IT-search`/`IT-advanced` (endpoint
+  confermati dalle specifiche del team, non indovinati — diverso
+  dall'`IT-start` usato in una versione precedente di questo file, mai
+  confermato). La forma esatta dei parametri di Search e dei campi di
+  risposta resta comunque da verificare contro l'API reale.
+- `query-compiler.ts`: traduce SOLO i requisiti la cui semantica è certa
+  (ATECO ammessi, fatturato min/max, dipendenti min/max) in filtri Search.
+  Regione/provincia NON viene tradotta — l'esempio delle specifiche usa un
+  parametro `province` (codice a 2 lettere), mentre `Misura.regioniAmmesse`
+  contiene nomi di regione: senza una mappa regione→province verificata,
+  tradurla a monte rischierebbe di escludere aziende ammissibili per un
+  parametro sbagliato (esattamente il caso che le specifiche vietano
+  esplicitamente, §6). Resta verificata a valle da `valutaMatch` sui dati
+  Advanced.
+- `budget.ts`: guardrail di spesa — budget giornaliero/mensile
+  configurabili (env), **prenotati PRIMA di ogni chiamata** dentro una
+  transazione DB (mai speso più del budget, mai un addebito non
+  contabilizzato). Nessun lock distribuito vero (Redis o simile non è
+  presente in questo progetto) — per un team piccolo su un'unica istanza
+  la prenotazione atomica in transazione copre lo stesso rischio pratico;
+  se in futuro servissero più istanze concorrenti, va rivisto.
+- `cache.ts`: riusa la tabella `Prospect` esistente come cache aziende
+  (niente entità `companies` parallela — nel dominio di questo prodotto
+  sono lo stesso concetto), con TTL configurabile (`OPENAPI_ADVANCED_TTL_GIORNI`,
+  default 90 giorni).
+- `engine.ts`: orchestrazione — versione semplificata rispetto allo
+  pseudocodice completo delle specifiche (§14): una sola pagina per
+  segmento di query (no paginazione persistente multi-pagina ancora), un
+  run alla volta senza lock distribuito. Onestamente segnalato in UI
+  quando la copertura di un run è parziale.
+
+Verificato con test end-to-end contro il Postgres locale (poi rimossi,
+mockando solo la telefonata di rete verso OpenAPI): un primo run arricchisce
+davvero solo le candidate nuove e crea i match; un secondo run identico
+riusa la cache e non richiama Advanced una seconda volta (zero doppia
+spesa); il guardrail di budget rifiuta correttamente la chiamata che
+sforerebbe il limite, senza scrivere un addebito fantasma.
 
 ### Nota importante sui parser di monitoraggio — serve un giro di calibrazione reale
 
