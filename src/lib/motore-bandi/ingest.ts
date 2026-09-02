@@ -28,6 +28,33 @@ function hashCorpo(corpo: string): string {
   return createHash("sha256").update(corpo).digest("hex");
 }
 
+/**
+ * "fetch failed" da solo (il messaggio top-level che Node/undici usa per
+ * quasi ogni fallimento di rete — DNS, TLS, connessione rifiutata,
+ * timeout...) non dice nulla di utile: la vera causa è quasi sempre
+ * annidata in `error.cause`, non inclusa da un semplice `err.message`.
+ * Percorre la catena di cause per non ritrovarsi mai più con un log che
+ * dice solo "fetch failed" senza sapere perché (successo la prima volta
+ * che questo adapter ha girato per davvero, in produzione).
+ */
+function descriviErrore(err: unknown): string {
+  if (!(err instanceof Error)) return String(err);
+  const parti = [err.message];
+  let causa = (err as { cause?: unknown }).cause;
+  let profondita = 0;
+  while (causa && profondita < 5) {
+    if (causa instanceof Error) {
+      parti.push(`causa: ${causa.message}${"code" in causa ? ` (${(causa as any).code})` : ""}`);
+      causa = (causa as { cause?: unknown }).cause;
+    } else {
+      parti.push(`causa: ${String(causa)}`);
+      causa = undefined;
+    }
+    profondita += 1;
+  }
+  return parti.join(" — ");
+}
+
 /** Fingerprint dei soli campi rilevanti — un fetch che riporta lo stesso contenuto non deve riscrivere né generare evidence/eventi spuri (stesso principio del vecchio motore, engine.ts:campiRilevantiUguali). */
 function fingerprintBando(b: BandoNormalizzato): string {
   const rilevante = {
@@ -298,7 +325,7 @@ export async function ingestFonte(fonteId: string, opts: { forza?: boolean } = {
       misureAggiornate: aggiornate,
     };
   } catch (err) {
-    const messaggio = err instanceof Error ? err.message : "Errore sconosciuto";
+    const messaggio = descriviErrore(err);
     const nuoveFailures = fonte.consecutiveFailures + 1;
     await prisma.fonte.update({
       where: { id: fonte.id },

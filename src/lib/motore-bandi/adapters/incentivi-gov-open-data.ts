@@ -25,6 +25,14 @@ const TIMEOUT_FETCH_MS = 30_000;
 const HEADERS_FETCH = {
   "User-Agent": "SonarFinanzaAgevolata/1.0 (+https://www.molo4punto0.it; motore-bandi)",
   Accept: "application/json, text/csv;q=0.9, */*;q=0.5",
+  // Referer verso la pagina Open Data reale (quella da cui il team ha
+  // recuperato l'endpoint): molti backend Drupal/Search API-Solr accettano
+  // chiamate dirette solo con un Referer coerente con il sito, altrimenti
+  // rifiutano la connessione a livello di rete prima ancora di rispondere
+  // con uno status HTTP — un possibile spiegazione del primo tentativo
+  // fallito con "fetch failed" (nessun corpo, nessuno status: la richiesta
+  // non è nemmeno arrivata a un handler applicativo).
+  Referer: "https://www.incentivi.gov.it/it/open-data",
 };
 
 /** Nomi di campo esatti confermati sull'export reale — vedi nota in cima al file. */
