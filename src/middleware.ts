@@ -22,5 +22,6 @@ export const config = {
     "/api/fonti/:path*",
     "/api/matches/:path*",
     "/api/kpi/:path*",
+    "/api/coverage/:path*",
   ],
 };

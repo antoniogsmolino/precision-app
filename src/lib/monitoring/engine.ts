@@ -9,6 +9,8 @@ import type { MisuraGrezza } from "./types";
 import type { Fonte } from "@prisma/client";
 
 const TIMEOUT_FETCH_MS = 20_000;
+/** Stessa soglia usata dal nuovo motore bandi (src/lib/motore-bandi/ingest.ts) — oltre questo numero di fallimenti di fila, healthStatus passa a BLOCKED invece di FAILING. */
+const CONSECUTIVE_FAILURES_BLOCKED = 5;
 
 export interface EsitoScanFonte {
   fonteId: string;
@@ -85,6 +87,7 @@ export async function scanFonte(fonteId: string, opts: { forza?: boolean } = {})
 
   const robots = await verificaRobotsTxt(fonte.url);
   if (!robots.consentito) {
+    await prisma.fonte.update({ where: { id: fonte.id }, data: { healthStatus: "BLOCKED" } });
     await registraLog(fonte, "BLOCCATO_ROBOTS", 0, 0, robots.motivo);
     return { fonteId, nome: fonte.nome, saltata: false, esito: "BLOCCATO_ROBOTS" };
   }
@@ -232,16 +235,28 @@ export async function scanFonte(fonteId: string, opts: { forza?: boolean } = {})
 
     await prisma.fonte.update({
       where: { id: fonte.id },
-      data: { ultimaScansioneAt: new Date(), ultimoEsitoScan: "SUCCESSO", ultimoHashContenuto: hash },
+      data: {
+        ultimaScansioneAt: new Date(),
+        ultimoEsitoScan: "SUCCESSO",
+        ultimoHashContenuto: hash,
+        healthStatus: "HEALTHY",
+        consecutiveFailures: 0,
+      },
     });
     await registraLog(fonte, "SUCCESSO", nuove, aggiornate, diagnosticaZeroMisure);
 
     return { fonteId, nome: fonte.nome, saltata: false, esito: "SUCCESSO", misureNuove: nuove, misureAggiornate: aggiornate };
   } catch (err) {
     const messaggio = messaggioErroreFetch(err);
+    const nuoveFailures = fonte.consecutiveFailures + 1;
     await prisma.fonte.update({
       where: { id: fonte.id },
-      data: { ultimaScansioneAt: new Date(), ultimoEsitoScan: "ERRORE" },
+      data: {
+        ultimaScansioneAt: new Date(),
+        ultimoEsitoScan: "ERRORE",
+        consecutiveFailures: nuoveFailures,
+        healthStatus: nuoveFailures >= CONSECUTIVE_FAILURES_BLOCKED ? "BLOCKED" : "FAILING",
+      },
     });
     await registraLog(fonte, "ERRORE", 0, 0, messaggio);
     return { fonteId, nome: fonte.nome, saltata: false, esito: "ERRORE", errore: messaggio };

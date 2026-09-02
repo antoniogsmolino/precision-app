@@ -36,11 +36,32 @@ const ESITO_STYLE: Record<string, string> = {
   BLOCCATO_ROBOTS: "bg-urgency-50 text-urgency-700 border-urgency-500/25",
 };
 
+interface Anomalia {
+  severita: "P0" | "P1" | "P2" | "P3";
+  fonteId: string;
+  nomeFonte: string;
+  descrizione: string;
+}
+
+interface RapportoCoverage {
+  salute: { totale: number; perStato: Record<string, number> };
+  perTerritorio: { regione: string; sana: boolean }[];
+  anomalie: Anomalia[];
+}
+
+const SEVERITA_STYLE: Record<Anomalia["severita"], string> = {
+  P0: "bg-brand-50 text-brand-700 border-brand-200",
+  P1: "bg-urgency-50 text-urgency-700 border-urgency-500/25",
+  P2: "bg-ocra-50 text-ocra-700 border-ocra-500/25",
+  P3: "bg-ink/[0.04] text-ink/50 border-ink/10",
+};
+
 type FiltroLivello = "TUTTI" | "L1_NAZIONALE" | "L2_REGIONALE" | "L3_CAMERALE";
 type FiltroEsito = "TUTTI" | "SUCCESSO" | "ERRORE" | "MAI_SCANSIONATA";
 
 export default function FontiPage() {
   const [fonti, setFonti] = useState<Fonte[] | null>(null);
+  const [coverage, setCoverage] = useState<RapportoCoverage | null>(null);
   const [scansioneInCorso, setScansioneInCorso] = useState<string | null>(null);
   const [scansioneBatchInCorso, setScansioneBatchInCorso] = useState(false);
   const [esitoBatch, setEsitoBatch] = useState<string | null>(null);
@@ -51,6 +72,9 @@ export default function FontiPage() {
     fetch("/api/fonti")
       .then((r) => r.json())
       .then(setFonti);
+    fetch("/api/coverage")
+      .then((r) => r.json())
+      .then(setCoverage);
   }
 
   useEffect(ricarica, []);
@@ -135,6 +159,36 @@ export default function FontiPage() {
           <RiepilogoTile label="Mai scansionate" valore={riepilogo.maiScansionate} colore="text-urgency-700" />
           <RiepilogoTile label="Misure rilevate" valore={riepilogo.misureTotali} colore="text-navigation-600" />
         </div>
+      )}
+
+      {/* Coverage Monitor (specifica motore bandi, §38): non un contatore di
+          bandi ma la salute delle fonti stesse — quali stanno funzionando,
+          quali territori risultano completamente coperti, e le anomalie da
+          guardare prima (P0 = catalogo nazionale rotto, P3 = singola CCIAA). */}
+      {coverage && (coverage.anomalie.length > 0 || coverage.perTerritorio.some((t) => !t.sana)) && (
+        <Card className="mt-5">
+          <CardBody className="pt-5">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-medium text-ink/80">Copertura</p>
+              <p className="text-xs text-ink/40">
+                {coverage.perTerritorio.filter((t) => t.sana).length}/{coverage.perTerritorio.length} territori sani
+              </p>
+            </div>
+            <div className="mt-3 space-y-2">
+              {coverage.anomalie.slice(0, 8).map((a) => (
+                <div key={a.fonteId} className="flex items-start gap-2 text-sm">
+                  <Badge className={SEVERITA_STYLE[a.severita]}>{a.severita}</Badge>
+                  <span className="text-ink/70">
+                    <span className="font-medium">{a.nomeFonte}</span> — {a.descrizione}
+                  </span>
+                </div>
+              ))}
+              {coverage.anomalie.length > 8 && (
+                <p className="text-xs text-ink/40">+ altre {coverage.anomalie.length - 8} anomalie</p>
+              )}
+            </div>
+          </CardBody>
+        </Card>
       )}
 
       <div className="mt-5 flex flex-wrap items-center gap-2">
