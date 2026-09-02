@@ -133,6 +133,22 @@ export async function eseguiSeed(prisma: PrismaClient) {
     })),
   ];
 
+  // Classificazione Source Registry (specifica motore bandi, §11/§4) per le
+  // fonti del VECCHIO motore (parserKey, HTML scraping): tutte dirette a
+  // un ente/Regione/Camera di commercio, mai un catalogo nazionale né un
+  // registro di riconciliazione — Tier 2 per definizione. sourceType
+  // HTML_LIST come default onesto (pagina con elenco bandi): non cambia
+  // nulla nell'estrazione, è solo metadato per Coverage Monitor e
+  // riconciliazione (task successivi) — le fonti che hanno già
+  // adapterKey/sourceTier/sourceType propri (es. Incentivi.gov.it Open
+  // Data) non vengono toccate.
+  for (const f of fonti) {
+    if (!f.adapterKey && !f.sourceTier) {
+      f.sourceTier = "TIER_2_FONTE_DIRETTA";
+      f.sourceType = "HTML_LIST";
+    }
+  }
+
   // update NON è {}: nome/url/regione/livello vanno risincronizzati dal
   // codice ad ogni rilancio del seed, altrimenti una correzione di URL
   // (es. un dominio sbagliato scoperto dal team) non arriva mai alle fonti
