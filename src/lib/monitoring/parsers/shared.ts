@@ -54,7 +54,14 @@ const NUMERO_EURO = "[\\d]{1,3}(?:[.\\s]\\d{3})*(?:,\\d+)?";
  */
 export function parseImportoEuro(testo: string): number | null {
   const conPrefisso = testo.match(new RegExp(`€\\s?(${NUMERO_EURO})`, "i"));
-  const conSuffisso = testo.match(new RegExp(`(${NUMERO_EURO})\\s?(?:€|euro)\\b`, "i"));
+  // `(?!\w)` invece di `\b` dopo "€"/"euro": essendo "€" un carattere non di
+  // parola, `\b` richiede che venga seguito da un carattere di parola per
+  // scattare — quindi non scattava mai nel caso comunissimo di "€"/"euro"
+  // seguito da spazio, punteggiatura o fine stringa (praticamente sempre),
+  // rendendo la forma con simbolo in coda silenziosamente inutilizzabile.
+  // Trovato scrivendo l'adapter Incentivi.gov.it (motore bandi) — "50%
+  // delle spese, tetto massimo 25.000 €" non veniva riconosciuto.
+  const conSuffisso = testo.match(new RegExp(`(${NUMERO_EURO})\\s?(?:€|euro)(?!\\w)`, "i"));
   const match = conPrefisso ?? conSuffisso;
   if (!match) return null;
   const numero = match[1].replace(/[.\s]/g, "").replace(",", ".");
