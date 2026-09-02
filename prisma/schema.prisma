@@ -266,6 +266,17 @@ model Misura {
   /// usato per capire se una scansione ha già visto questa misura.
   externalId              String?
 
+  // --- No-delete policy (specifica motore bandi, §37/§101 punto 4: "mai
+  // cancellare un bando perché sparisce da una lista") — solo per le
+  // misure del nuovo motore bandi (rilevataAutomaticamente + fonteId).
+  // Quando un bando non compare più nel feed, NON si cancella né si
+  // chiude in automatico: si incrementa assenzeConsecutive e si segnala
+  // nel backoffice per una conferma umana — la sparizione potrebbe
+  // dipendere da un errore della fonte, non dalla vera chiusura del
+  // bando (§37 elenca proprio questo: manutenzione, filtro, paginazione).
+  ultimoVistoInFonteAt DateTime?
+  assenzeConsecutive   Int       @default(0)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -485,6 +496,8 @@ enum TipoEventoBando {
   CONFLITTO_FONTI
   ERRORE_FONTE
   OVERRIDE_MANUALE
+  /// La misura non è più comparsa nell'ultima scansione della fonte (specifica, §37) — mai un'eliminazione automatica, solo un segnale per il backoffice.
+  ASSENTE_DA_FONTE
 }
 
 // Log eventi append-only (specifica, §33) — mai aggiornato/cancellato,

@@ -17,11 +17,13 @@ export const config = {
     "/misure/:path*",
     "/prospect/:path*",
     "/fonti/:path*",
+    "/backoffice/:path*",
     "/api/misure/:path*",
     "/api/prospect/:path*",
     "/api/fonti/:path*",
     "/api/matches/:path*",
     "/api/kpi/:path*",
     "/api/coverage/:path*",
+    "/api/backoffice/:path*",
   ],
 };

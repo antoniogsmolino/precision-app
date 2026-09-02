@@ -14,6 +14,7 @@ import { calcolaStatoMisura, giorniAllaScadenza } from "@/lib/misure/stato";
 import { formatValoreMisura, CATEGORIA_LABEL, TIPO_AGEVOLAZIONE_LABEL } from "@/lib/misure/valore";
 
 const dataFmt = new Intl.DateTimeFormat("it-IT", { day: "2-digit", month: "long", year: "numeric" });
+const dataOraFmt = new Intl.DateTimeFormat("it-IT", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
 const euro = new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 
 const STATO_PRATICA_LABEL: Record<string, string> = {
@@ -68,7 +69,29 @@ interface MisuraDettaglio {
   rilevataAutomaticamente: boolean;
   fonte: { nome: string } | null;
   cumulabili: { id: string; titolo: string }[];
+  eventi: { id: string; tipo: string; dettaglio: unknown; createdAt: string }[];
 }
+
+const EVENTO_LABEL: Record<string, string> = {
+  SCOPERTO: "Scoperto dalla fonte",
+  DOCUMENTO_AGGIUNTO: "Documento aggiunto",
+  DOCUMENTO_CAMBIATO: "Documento cambiato",
+  ESTRATTO: "Dati estratti",
+  VERIFICATO: "Verificato",
+  PUBBLICATO: "Pubblicato",
+  AGGIORNATO: "Dati aggiornati dalla fonte",
+  SCADENZA_PROROGATA: "Scadenza prorogata",
+  APERTO: "Aperto",
+  CHIUSO: "Chiuso",
+  SOSPESO: "Sospeso",
+  FONDI_ESAURITI: "Fondi esauriti",
+  ANNULLATO: "Annullato",
+  RIAPERTO: "Riaperto",
+  CONFLITTO_FONTI: "Conflitto tra fonti",
+  ERRORE_FONTE: "Errore sulla fonte",
+  OVERRIDE_MANUALE: "Intervento manuale del team",
+  ASSENTE_DA_FONTE: "Non più trovato nella fonte",
+};
 
 export default function MisuraDettaglioPage() {
   const { id } = useParams<{ id: string }>();
@@ -337,6 +360,22 @@ export default function MisuraDettaglioPage() {
           <CardBody className="pt-5">
             <SectionTitle>Note interne</SectionTitle>
             <p className="whitespace-pre-line text-[13px] text-ink/65">{misura.noteInterne}</p>
+          </CardBody>
+        </Card>
+      )}
+
+      {misura.eventi.length > 0 && (
+        <Card className="mt-4">
+          <CardBody className="pt-5">
+            <SectionTitle>Cronologia</SectionTitle>
+            <ol className="space-y-2.5">
+              {[...misura.eventi].reverse().map((e) => (
+                <li key={e.id} className="flex items-baseline justify-between gap-3 text-[13px]">
+                  <span className="text-ink/80">{EVENTO_LABEL[e.tipo] ?? e.tipo}</span>
+                  <span className="shrink-0 text-xs text-ink/40">{dataOraFmt.format(new Date(e.createdAt))}</span>
+                </li>
+              ))}
+            </ol>
           </CardBody>
         </Card>
       )}

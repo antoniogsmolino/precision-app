@@ -8,6 +8,7 @@ const LINKS = [
   { href: "/dashboard", label: "Radar", icon: RadarIcon },
   { href: "/prospect", label: "Prospect", icon: UsersIcon },
   { href: "/fonti", label: "Fonti monitorate", icon: SourceIcon },
+  { href: "/backoffice", label: "Backoffice", icon: BackofficeIcon },
 ];
 
 /**
@@ -79,6 +80,16 @@ function SourceIcon({ className }: { className?: string }) {
       <rect x="3" y="4" width="18" height="4" rx="1.2" stroke="currentColor" strokeWidth="1.6" />
       <rect x="3" y="10" width="18" height="4" rx="1.2" stroke="currentColor" strokeWidth="1.6" />
       <rect x="3" y="16" width="11" height="4" rx="1.2" stroke="currentColor" strokeWidth="1.6" />
+    </svg>
+  );
+}
+
+function BackofficeIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className}>
+      <rect x="4" y="3" width="16" height="18" rx="2" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M8 8h8M8 12h8M8 16h5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <path d="M8.5 3v2M15.5 3v2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
     </svg>
   );
 }

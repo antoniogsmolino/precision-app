@@ -8,7 +8,7 @@ import { calcolaStatoMisura } from "@/lib/misure/stato";
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
   const misura = await prisma.misura.findUnique({
     where: { id: params.id },
-    include: { fonte: true },
+    include: { fonte: true, eventi: { orderBy: { createdAt: "asc" } } },
   });
   if (!misura) return NextResponse.json({ errore: "Misura non trovata" }, { status: 404 });
 

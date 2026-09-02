@@ -17,6 +17,7 @@ function* inLotti<T>(elementi: T[], dimensione: number): Generator<T[]> {
 }
 
 const HTTP_TIMEOUT_ANOMALIA = 5; // consecutiveFailures oltre cui healthStatus passa a BLOCKED invece di FAILING
+const SOGLIA_ASSENZE_SEGNALAZIONE = 2; // assenze consecutive dal feed oltre cui si logga ASSENTE_DA_FONTE (un margine di 1 scan per non segnalare un singolo scarto transitorio)
 
 export interface EsitoIngestFonte {
   fonteId: string;
@@ -349,6 +350,39 @@ export async function ingestFonte(fonteId: string, opts: { forza?: boolean } = {
         );
       }
       aggiornate += daAggiornare.length;
+
+      // --- Passata 5: no-delete policy (specifica §37/§101 punto 4) --------
+      // Ogni misura trovata in questo giro (nuova, aggiornata O invariata)
+      // viene marcata "vista adesso": azzera eventuali assenze pregresse.
+      // Conta la sola presenza nel feed, non il cambiamento di contenuto.
+      const idsMisureVisteOra = [...daCreare.map((d) => d.id), ...esistentiRows.map((r) => r.id)];
+      for (const lotto of inLotti(idsMisureVisteOra, DIMENSIONE_LOTTO)) {
+        await prisma.misura.updateMany({ where: { id: { in: lotto } }, data: { ultimoVistoInFonteAt: new Date(), assenzeConsecutive: 0 } });
+      }
+
+      // Misure di QUESTA fonte non trovate in questo giro: MAI cancellate né
+      // chiuse in automatico (specifica: la sparizione può dipendere da un
+      // errore della fonte, non dalla vera chiusura del bando) — solo
+      // incrementate e segnalate al backoffice per una conferma umana, una
+      // volta sola (all'esatto momento in cui superano la soglia, non ogni
+      // giorno da lì in poi).
+      const assentiRows = await prisma.misura.findMany({
+        where: { fonteId: fonte.id, id: idsMisureVisteOra.length > 0 ? { notIn: idsMisureVisteOra } : undefined },
+        select: { id: true, assenzeConsecutive: true },
+      });
+      for (const lotto of inLotti(assentiRows, CONCORRENZA_UPDATE)) {
+        await Promise.all(lotto.map((m) => prisma.misura.update({ where: { id: m.id }, data: { assenzeConsecutive: { increment: 1 } } })));
+      }
+      const appenaSopraSoglia = assentiRows.filter((m) => m.assenzeConsecutive + 1 === SOGLIA_ASSENZE_SEGNALAZIONE);
+      if (appenaSopraSoglia.length > 0) {
+        await prisma.eventoBando.createMany({
+          data: appenaSopraSoglia.map((m) => ({
+            misuraId: m.id,
+            tipo: "ASSENTE_DA_FONTE" as const,
+            dettaglio: { fonteId: fonte.id, assenzeConsecutive: SOGLIA_ASSENZE_SEGNALAZIONE },
+          })),
+        });
+      }
     }
 
     // Un solo ricalcolo globale dei match a fine ingest invece di uno per
