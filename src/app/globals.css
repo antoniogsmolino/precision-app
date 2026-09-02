@@ -2,47 +2,62 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap");
 
 :root {
   /* -----------------------------------------------------------------------
-   * Design tokens MOLO 4.0. Tutto il colore dell'interfaccia deriva da qui
-   * — ricolorare il prodotto significa ridefinire questi valori, non
-   * toccare Tailwind config o i componenti.
+   * Design tokens MOLO 4.0 — allineati alla palette REALE del sito pubblico
+   * (moloquattropuntozero.it, vedi documento di estrazione del design
+   * system del 2 settembre 2026), non più a un rosso scelto internamente.
+   * Tutto il colore dell'interfaccia deriva da qui — ricolorare il
+   * prodotto significa ridefinire questi valori, non toccare Tailwind
+   * config o i componenti.
    *
-   * Rampa "brand" (rossi) ancorata esattamente sui due token del brief:
-   *   --brand-600 = #E41F25 (PRIMARY — pulsanti pieni, 4.64:1 su bianco)
-   *   --brand-700 = --brand-800 = #C91F12 (PRIMARY HOVER — hover e active)
+   * Rampa "brand" ancorata su --awb-color7 = #FF2D16 (il rosso/arancio
+   * delle CTA e del marchio sul sito reale, non il rosso #E41F25 usato
+   * nella build precedente). Hover: NON un rosso più scuro come prima —
+   * sul sito reale ogni CTA passa a un fondo antracite (~#161719,
+   * hsl(220 4% 9%)) in hover, testo bianco. Vedi Button in
+   * components/ui/button.tsx.
    * --------------------------------------------------------------------- */
-  --brand-50: 358 100% 97%;
-  --brand-100: 358 92% 94%;
-  --brand-200: 358 88% 88%;
-  --brand-300: 358 84% 79%;
-  --brand-400: 358 81% 68%;
-  --brand-500: 358 79% 58%;
-  --brand-600: 358 78% 51%; /* #E41F25 */
-  --brand-700: 4 84% 43%; /* #C91F12 */
-  --brand-800: 4 84% 43%; /* #C91F12 — hover e active condividono lo stesso rosso */
-  --brand-900: 4 78% 30%;
-  --brand-950: 4 70% 18%;
+  --brand-50: 14 100% 97%;
+  --brand-100: 14 100% 93%;
+  --brand-200: 14 100% 85%;
+  --brand-300: 14 100% 74%;
+  --brand-400: 14 100% 63%;
+  --brand-500: 12 100% 55%;
+  --brand-600: 11 100% 53%; /* #FF2D16 — awb-color7, PRIMARY reale MOLO */
+  --brand-700: 220 4% 9%; /* ~#161719 — hover CTA reale (antracite, non rosso scuro) */
+  --brand-800: 220 4% 9%;
+  --brand-900: 220 6% 14%;
+  --brand-950: 220 9% 10%;
 
-  /* INK — titoli e superfici scure */
-  --ink: 220 9% 19%; /* #2B2E34 */
+  /* INK — awb-color8, #2B2E34: testi principali, footer, superfici scure. */
+  --ink: 220 9% 19%;
 
-  /* GROWTH — progressi/risultati. Regola d'uso: testo sempre --ink sopra,
-     mai bianco (contrasto insufficiente sul verde a piena saturazione). */
+  /* GROWTH — awb-color4, #65BD7D esatto. Regola d'uso: testo sempre --ink
+     sopra, mai bianco (contrasto insufficiente sul verde a piena
+     saturazione). */
   --growth-50: 136 45% 95%;
   --growth-500: 136 40% 57%; /* #65BD7D */
   --growth-600: 136 40% 48%;
   --growth-700: 136 48% 30%;
 
-  /* NAVIGATION — info e orientamento. Per testo piccolo usare -700. */
+  /* NAVIGATION — awb-color5, #198FD9 esatto. Per testo piccolo usare -700. */
   --navigation-50: 203 85% 96%;
   --navigation-500: 203 79% 47%; /* #198FD9 */
   --navigation-600: 203 79% 40%;
   --navigation-700: 203 82% 30%;
 
-  /* URGENCY — non è un token del brief: introdotto per distinguere lo stato
+  /* OCRA — awb-custom_color_1, #E4A858: terzo accento del sito reale,
+     usato qui per varietà nelle card colorate della dashboard (accanto a
+     growth/navigation) dove prima si usava solo urgency/ambra. */
+  --ocra-50: 38 70% 95%;
+  --ocra-500: 36 72% 62%; /* #E4A858 */
+  --ocra-600: 34 65% 50%;
+  --ocra-700: 32 60% 34%;
+
+  /* URGENCY — non è un token del sito: introdotto per distinguere lo stato
      "in scadenza" dal rosso PRIMARY (riservato alle CTA), evitando che le
      due cose si confondano visivamente in dashboard. */
   --urgency-50: 37 95% 95%;
@@ -50,10 +65,13 @@
   --urgency-700: 32 80% 32%;
 
   --surface: 0 0% 100%;
-  --surface-alt: 240 20% 98%; /* #F9F9FB */
+  --surface-alt: 240 20% 98%; /* #F9F9FB — awb-color2 esatto */
+  --surface-muted: 220 9% 95%; /* #F2F3F5 — awb-color3, fondo body del sito reale */
   --border-subtle: 220 14% 90%;
 
-  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  /* Poppins: font effettivo del body/titoli/CTA sul sito reale MOLO
+     (sostituisce Inter, mai usato sul sito pubblico). */
+  --font-sans: "Poppins", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 
   /* Easing "liquido": accelera piano, si assesta con un piccolo overshoot
      percepito — usato per drawer, hover-lift, comparse di card. */

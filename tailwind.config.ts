@@ -39,6 +39,12 @@ const config: Config = {
           600: token("navigation-600"),
           700: token("navigation-700"),
         },
+        ocra: {
+          50: token("ocra-50"),
+          500: token("ocra-500"), // #E4A858
+          600: token("ocra-600"),
+          700: token("ocra-700"),
+        },
         urgency: {
           50: token("urgency-50"),
           500: token("urgency-500"),
@@ -47,6 +53,7 @@ const config: Config = {
         surface: {
           DEFAULT: token("surface"),
           alt: token("surface-alt"), // #F9F9FB
+          muted: token("surface-muted"), // #F2F3F5
         },
       },
       fontFamily: {
@@ -55,7 +62,7 @@ const config: Config = {
           "-apple-system",
           "BlinkMacSystemFont",
           "Segoe UI",
-          "Inter",
+          "Poppins",
           "sans-serif",
         ],
       },
@@ -63,7 +70,7 @@ const config: Config = {
         card: "0 1px 2px 0 rgb(43 46 52 / 0.04), 0 1px 3px 0 rgb(43 46 52 / 0.06)",
         "card-hover": "0 8px 20px -4px rgb(43 46 52 / 0.12), 0 3px 8px -3px rgb(43 46 52 / 0.08)",
         glass: "0 8px 30px -12px rgb(43 46 52 / 0.22), 0 1px 1px 0 rgb(255 255 255 / 0.4) inset",
-        glow: "0 0 0 1px rgb(228 31 37 / 0.08), 0 8px 24px -8px rgb(228 31 37 / 0.35)",
+        glow: "0 0 0 1px rgb(255 45 22 / 0.1), 0 8px 24px -8px rgb(255 45 22 / 0.4)",
       },
       keyframes: {
         "fade-in": {
