@@ -256,15 +256,24 @@ export const adapterIncentiviGovOpenData: SourceAdapter = {
       return [];
     }
 
+    // L'URL reale della risorsa (trovato dal team via DevTools, non un
+    // export statico) è l'endpoint Solr diretto usato dal pulsante
+    // "Scarica JSON" del portale — risponde con la busta standard di Solr
+    // `{ response: { docs: [...] } }`, non un array nudo. Il resto dei
+    // rami sotto resta per compatibilità con eventuali export statici
+    // (quello fornito una tantum dal team per calibrare i nomi di campo
+    // era un array nudo).
     const elencoRecord: unknown[] = Array.isArray(record)
       ? record
-      : Array.isArray((record as any)?.data)
-        ? (record as any).data
-        : Array.isArray((record as any)?.results)
-          ? (record as any).results
-          : Array.isArray((record as any)?.items)
-            ? (record as any).items
-            : [];
+      : Array.isArray((record as any)?.response?.docs)
+        ? (record as any).response.docs
+        : Array.isArray((record as any)?.data)
+          ? (record as any).data
+          : Array.isArray((record as any)?.results)
+            ? (record as any).results
+            : Array.isArray((record as any)?.items)
+              ? (record as any).items
+              : [];
 
     return elencoRecord.filter((r): r is Record<string, unknown> => typeof r === "object" && r !== null).map(normalizzaRecord);
   },

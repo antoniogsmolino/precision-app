@@ -283,7 +283,16 @@ async function registraLog(
  * "dovute" vengono riprese al giro di cron successivo.
  */
 export async function scanFontiDovute(opts: { forza?: boolean } = {}): Promise<EsitoScanFonte[]> {
-  const fonti = await prisma.fonte.findMany({ where: { attiva: true } });
+  // adapterKey: null esclude le fonti del nuovo motore bandi (vedi
+  // src/lib/motore-bandi/ingest.ts, ingestFontiDovute — sono quelle a
+  // occuparsene). Senza questo filtro una fonte con solo adapterKey
+  // impostato verrebbe comunque presa in carico anche da qui: risolviParser
+  // non troverebbe nulla per il suo parserKey (placeholder, nessun parser
+  // vecchio registrato), loggando un errore spurio ogni giorno e
+  // sovrascrivendo lo stato scritto correttamente dal nuovo motore — le due
+  // scritture sul campo Fonte partirebbero in corsa fra loro (nel cron
+  // girano insieme via Promise.all).
+  const fonti = await prisma.fonte.findMany({ where: { attiva: true, adapterKey: null } });
   const risultati: EsitoScanFonte[] = [];
 
   for (const fonte of fonti) {

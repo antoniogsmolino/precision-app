@@ -10,6 +10,10 @@ interface FonteSeed {
   regione?: string;
   url: string;
   parserKey: string;
+  /** Solo per le fonti del nuovo motore bandi (src/lib/motore-bandi/) — se assenti, la fonte resta gestita dal vecchio motore via parserKey. */
+  adapterKey?: string;
+  sourceTier?: "TIER_0_CATALOGO_NAZIONALE" | "TIER_1_RICONCILIAZIONE" | "TIER_2_FONTE_DIRETTA";
+  sourceType?: "OPEN_DATA_JSON" | "OPEN_DATA_CSV" | "REST_API" | "RSS" | "SITEMAP" | "HTML_LIST" | "HTML_SEARCH" | "JS_RENDERED" | "PDF_ARCHIVE" | "BUR" | "ALTRO";
 }
 
 /**
@@ -36,6 +40,22 @@ export async function eseguiSeed(prisma: PrismaClient) {
 
   // --- Fonti Fase 1 (Livello 1 nazionali + primo test camerale) -------
   const fonti: FonteSeed[] = [
+    {
+      // Fonte Tier 0 del NUOVO motore bandi (src/lib/motore-bandi/) — non
+      // HTML da interpretare come le altre righe qui sotto, ma l'endpoint
+      // Solr diretto che il pulsante "Scarica JSON" della pagina Open Data
+      // del portale usa davvero (trovato dal team con gli strumenti
+      // sviluppatore del browser, non un export statico). Risponde in
+      // JSON con la busta Solr { response: { docs: [...] } }, che
+      // l'adapter incentivi-gov-open-data.ts sa già spacchettare.
+      nome: "Incentivi.gov.it — Open Data (nuovo motore)",
+      livello: "L1_NAZIONALE" as const,
+      url: "https://www.incentivi.gov.it/solr/coredrupal/select?q.op=OR&wt=json&rows=8000&fl=ID_Incentivo%3Azs_nid%2CTitolo%3Azs_title%2CDescrizione%3Azs_body%2CObiettivo_Finalita%3Azm_field_scopes_value%2CData_apertura%3Azs_field_open_date%2CData_chiusura%3Azs_field_close_date%2CNote_di_apertura_chiusura%3Azs_field_close_date_descriptor%2CDimensioni%3Azm_field_dimensions_value%2CTipologia_Soggetto%3Azm_field_subject_type_value%2CForma_agevolazione%3Azm_field_support_form_value%2CCosti_Ammessi%3Azm_field_granted_costs_value%2CSpesa_Ammessa_min%3Azs_field_cost_min%2CSpesa_Ammessa_max%3Azs_field_cost_max%2CAgevolazione_Concedibile_min%3Azs_field_support_grant_type_min%2CAgevolazione_Concedibile_max%3Azs_field_support_grant_type_max%2CSettore_Attivita%3Azm_field_activity_sector_value%2CCodici_ATECO%3Azs_field_ateco%2CRegioni%3Azm_field_regions_value%2CComuni%3Azs_field_comuni%2CAmbito_territoriale%3Azm_field_special_territory_value%2CSoggetto_Concedente%3Azs_field_subject_grant%2CBase_normativa_primaria%3Azs_field_primary_ruleset%2CBase_normativa_secondaria%3Azs_field_secondary_ruleset%2CProvvedimento_attuativo%3Azs_field_implementation_ruleset%2CGazzetta_ufficiale%3Azs_field_official_references%2CStanziamento_incentivo%3Azs_field_budget_allocation%2CLink_istituzionale%3Azs_field_link%2CAltre_caratteristiche%3Azs_field_other_characteristic%2CData_ultimo_aggiornamento%3Ads_last_update%2C&q=index_id%3Aincentivi+",
+      parserKey: "incentivi-gov-open-data",
+      adapterKey: "incentivi-gov-open-data",
+      sourceTier: "TIER_0_CATALOGO_NAZIONALE",
+      sourceType: "OPEN_DATA_JSON",
+    },
     {
       nome: "incentivi.gov.it (MIMIT)",
       livello: "L1_NAZIONALE" as const,
@@ -122,7 +142,15 @@ export async function eseguiSeed(prisma: PrismaClient) {
   for (const f of fonti) {
     await prisma.fonte.upsert({
       where: { parserKey: f.parserKey },
-      update: { nome: f.nome, url: f.url, livello: f.livello, regione: f.regione ?? null },
+      update: {
+        nome: f.nome,
+        url: f.url,
+        livello: f.livello,
+        regione: f.regione ?? null,
+        adapterKey: f.adapterKey ?? null,
+        sourceTier: f.sourceTier ?? null,
+        sourceType: f.sourceType ?? null,
+      },
       create: f,
     });
   }

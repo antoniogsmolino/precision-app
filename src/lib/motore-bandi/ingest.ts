@@ -4,6 +4,7 @@ import { risolviAdapter } from "./adapters/registry";
 import { validaBandoNormalizzato, calcolaStatoPubblicazione } from "./validazione";
 import type { BandoNormalizzato, CampoConEvidenza } from "./adapters/tipi";
 import { ricalcolaMatchPerMisura } from "@/lib/matching/engine";
+import { verificaRobotsTxt } from "@/lib/monitoring/robots";
 import type { Fonte } from "@prisma/client";
 
 const HTTP_TIMEOUT_ANOMALIA = 5; // consecutiveFailures oltre cui healthStatus passa a BLOCKED invece di FAILING
@@ -13,7 +14,7 @@ export interface EsitoIngestFonte {
   nome: string;
   saltata: boolean;
   motivoSalto?: string;
-  esito?: "SUCCESSO" | "ERRORE";
+  esito?: "SUCCESSO" | "ERRORE" | "BLOCCATO_ROBOTS";
   bandiTotaliNelFeed?: number;
   bandiValidi?: number;
   bandiScartati?: number;
@@ -121,6 +122,15 @@ export async function ingestFonte(fonteId: string, opts: { forza?: boolean } = {
       saltata: true,
       motivoSalto: `Nessun adapter registrato per adapterKey="${fonte.adapterKey ?? "(non impostato)"}"`,
     };
+  }
+
+  // Stesso controllo del vecchio motore (specifica, §62): mai bypassare un
+  // Disallow, anche per un endpoint dati pubblico.
+  const robots = await verificaRobotsTxt(fonte.url);
+  if (!robots.consentito) {
+    await prisma.fonte.update({ where: { id: fonte.id }, data: { ultimaScansioneAt: new Date(), ultimoEsitoScan: "BLOCCATO_ROBOTS" } });
+    await registraScanLog(fonte, "BLOCCATO_ROBOTS", 0, 0, robots.motivo);
+    return { fonteId, nome: fonte.nome, saltata: false, esito: "BLOCCATO_ROBOTS" };
   }
 
   try {
@@ -304,7 +314,7 @@ export async function ingestFonte(fonteId: string, opts: { forza?: boolean } = {
   }
 }
 
-async function registraScanLog(fonte: Fonte, esito: "SUCCESSO" | "ERRORE", misureNuove: number, misureAggiornate: number, messaggioErrore?: string) {
+async function registraScanLog(fonte: Fonte, esito: "SUCCESSO" | "ERRORE" | "BLOCCATO_ROBOTS", misureNuove: number, misureAggiornate: number, messaggioErrore?: string) {
   await prisma.scanLog.create({
     data: { fonteId: fonte.id, esito, misureNuove, misureAggiornate, messaggioErrore, completatoAt: new Date() },
   });
