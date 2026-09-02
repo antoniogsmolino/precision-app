@@ -38,6 +38,45 @@ enum EsitoScan {
   BLOCCATO_ROBOTS
 }
 
+// Livello di affidabilità della fonte (specifica motore bandi, §4): il
+// catalogo ufficiale nazionale è Tier 0, i registri di riconciliazione
+// (RNA/OpenCoesione/SIAN) Tier 1, le fonti istituzionali dirette (siti di
+// enti/Regioni/Comuni) Tier 2. Guida la priorità nei conflitti fra fonti,
+// non sostituisce `livello` (che invece descrive l'ambito: nazionale/
+// regionale/camerale).
+enum SourceTier {
+  TIER_0_CATALOGO_NAZIONALE
+  TIER_1_RICONCILIAZIONE
+  TIER_2_FONTE_DIRETTA
+}
+
+// Tipo tecnico della fonte (specifica, §11) — determina quale adapter in
+// src/lib/motore-bandi/adapters/ la legge. Sottoinsieme pragmatico
+// dell'elenco della specifica: si estende quando serve un nuovo adapter,
+// non prima.
+enum SourceType {
+  OPEN_DATA_JSON
+  OPEN_DATA_CSV
+  REST_API
+  RSS
+  SITEMAP
+  HTML_LIST
+  HTML_SEARCH
+  JS_RENDERED
+  PDF_ARCHIVE
+  BUR
+  ALTRO
+}
+
+enum HealthStatus {
+  HEALTHY
+  DEGRADED
+  FAILING
+  BLOCKED
+  UNKNOWN
+  DISABLED
+}
+
 model Fonte {
   id                  String       @id @default(cuid())
   nome                String
@@ -45,6 +84,9 @@ model Fonte {
   regione             String? // valorizzato per fonti regionali/camerali
   url                 String
   /// Chiave del parser dedicato in src/lib/monitoring/parsers/registry.ts
+  /// — motore "Livello 1" esistente (selettori HTML calibrati per fonte).
+  /// Resta finché quel motore è in uso; le fonti migrate al nuovo motore
+  /// bandi (Source Registry) valorizzano invece sourceType/adapterKey.
   parserKey           String       @unique
   attiva              Boolean      @default(true)
   frequenzaOreScan    Int          @default(24)
@@ -55,8 +97,22 @@ model Fonte {
   createdAt           DateTime     @default(now())
   updatedAt           DateTime     @updatedAt
 
-  misure   Misura[]
-  scanLogs ScanLog[]
+  // --- Source Registry (specifica motore bandi, §11) ---------------------
+  // Tutti opzionali: una Fonte esistente del vecchio motore non ha ancora
+  // questi valori finché non viene migrata a un adapter del nuovo motore.
+  sourceTier          SourceTier?
+  sourceType          SourceType?
+  /// Chiave dell'adapter in src/lib/motore-bandi/adapters/registry.ts —
+  /// distinta da parserKey: un domani una stessa Fonte può passare dal
+  /// vecchio parser al nuovo adapter senza perdere lo storico scan.
+  adapterKey          String?
+  healthStatus        HealthStatus @default(UNKNOWN)
+  consecutiveFailures Int          @default(0)
+  ultimoCambiamentoAt DateTime? // last_change_at: ultima volta che il contenuto è cambiato davvero
+
+  misure       Misura[]
+  scanLogs     ScanLog[]
+  rawSnapshots RawSnapshot[]
 }
 
 model ScanLog {
@@ -103,6 +159,25 @@ enum StatoPratica {
   CONTRATTO_ATTIVO
 }
 
+// Stato dichiarato esplicitamente dalla fonte ufficiale (specifica motore
+// bandi, §21.3/§34) — NON sostituisce lo stato mostrato in dashboard
+// (Futura/Attiva/In scadenza/Scaduta), che resta sempre ricalcolato a
+// runtime da src/lib/misure/stato.ts a partire dalle date. Serve per i
+// casi che le sole date non possono rappresentare: una sospensione, un
+// esaurimento fondi o un annullamento dichiarati sulla fonte, che le date
+// da sole farebbero sembrare ancora "Attiva". Se presente, la UI deve
+// darle priorità sullo stato calcolato dalle date.
+enum StatoDichiaratoBando {
+  PRENOTICE
+  UPCOMING
+  OPEN
+  PAUSED
+  FUNDS_EXHAUSTED
+  CLOSED
+  CANCELLED
+  REOPENED
+}
+
 model Misura {
   id                String          @id @default(cuid())
   titolo            String
@@ -110,6 +185,29 @@ model Misura {
   categoria         CategoriaMisura
   descrizioneBreve  String
   descrizioneEstesa String
+
+  // --- Livello "programma" del modello Misura/Bando/Finestra (specifica
+  // motore bandi, §3) — questa riga Misura corrisponde al livello "Bando/
+  // procedura attuativa" della specifica (è l'unità mostrata in dashboard
+  // e usata per il matching, non tocco quella parte già funzionante).
+  // programmaId collega più edizioni/rifinanziamenti dello stesso quadro
+  // giuridico nel tempo, quando riconosciuti come tali — opzionale, nullo
+  // finché non riconciliato.
+  programmaId String?
+  programma   Programma? @relation(fields: [programmaId], references: [id], onDelete: SetNull)
+
+  // Identificativi esterni ufficiali (specifica, §21.2) — chiave primaria
+  // per la deduplicazione "hard identifier" (§30.1). @unique su un campo
+  // nullable in Postgres consente comunque più righe NULL: non forza unicità
+  // finché il valore non è noto.
+  incentiviGovId String? @unique
+  rnaCar         String?
+  sianCar        String?
+
+  // Stato dichiarato dalla fonte, quando esplicito — vedi commento
+  // sull'enum. Nullo per le misure inserite manualmente o rilevate dal
+  // vecchio motore, che non lo popolano.
+  statoDichiarato StatoDichiaratoBando?
 
   tipoAgevolazione TipoAgevolazione
   tipoValore       TipoValoreMisura
@@ -163,10 +261,226 @@ model Misura {
   ricercheProspect RicercaProspectLog[]
   usoApiOpenApi    ApiUsageLog[]
 
+  // --- Motore bandi: livello "finestra" + documenti + evidence + eventi ---
+  finestre  FinestraTemporale[]
+  documenti DocumentoUfficiale[]
+  evidenze  Evidence[]
+  eventi    EventoBando[]
+
   @@unique([fonteId, externalId])
   @@index([categoria])
   @@index([dataScadenza])
   @@index([dataApertura])
+}
+
+// ---------------------------------------------------------------------------
+// Motore bandi — modello Misura/Bando/Finestra, documenti, evidence, eventi
+// (specifica tecnica motore nazionale bandi finanza agevolata, §3/§16/§19/
+// §21/§26/§33). Il "Bando" della specifica resta il model `Misura` sopra
+// (già l'unità mostrata in dashboard e usata dal matching); qui i due
+// livelli mancanti — Programma e Finestra — più il grafo documentale,
+// l'evidence per campo e il log eventi append-only.
+// ---------------------------------------------------------------------------
+
+// Livello "Misura" della specifica (§3.1): il quadro giuridico/programma
+// che può durare anni e avere più edizioni/rifinanziamenti. Volutamente
+// minimale: si arricchisce quando la riconciliazione fra fonti lo richiede
+// davvero, non prima.
+model Programma {
+  id            String   @id @default(cuid())
+  titolo        String
+  ente          String
+  baseGiuridica String?
+  note          String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  misure Misura[]
+}
+
+enum TipoChiusuraFinestra {
+  DATA_FISSA
+  ESAURIMENTO_FONDI
+  FINO_A_REVOCA
+  FINESTRE_MULTIPLE
+  CLICK_DAY
+  SCONOSCIUTO
+}
+
+// Livello "Finestra" della specifica (§3.3/§21.4): un bando può avere più
+// finestre (prima apertura, riapertura, proroga...). dataApertura/
+// dataScadenza su Misura restano come "finestra corrente" denormalizzata
+// per compatibilità con la UI/matching esistenti — questa tabella è la
+// fonte di verità quando servono tutte le finestre, non solo l'ultima.
+model FinestraTemporale {
+  id           String               @id @default(cuid())
+  misuraId     String
+  misura       Misura               @relation(fields: [misuraId], references: [id], onDelete: Cascade)
+  etichetta    String?
+  apreIl       DateTime?
+  chiudeIl     DateTime?
+  tipoChiusura TipoChiusuraFinestra @default(SCONOSCIUTO)
+  note         String?
+  /// true sulla finestra attualmente rilevante — al più una per misura.
+  corrente     Boolean              @default(false)
+  createdAt    DateTime             @default(now())
+
+  @@index([misuraId])
+}
+
+enum RuoloDocumento {
+  BANDO
+  DECRETO_ATTUATIVO
+  RETTIFICA
+  PROROGA
+  ALLEGATO
+  FAQ
+  MODULISTICA
+  GRADUATORIA
+  PORTALE_DOMANDA
+  ALTRO
+}
+
+// Documento ufficiale collegato a una misura (specifica, §16 "Document
+// Graph"). Il contenuto vero e proprio vive in DocumentoVersione — un
+// documento può cambiare più volte (proroghe, rettifiche) senza perdere lo
+// storico.
+model DocumentoUfficiale {
+  id          String         @id @default(cuid())
+  misuraId    String?
+  misura      Misura?        @relation(fields: [misuraId], references: [id], onDelete: SetNull)
+  urlCanonico String
+  ruolo       RuoloDocumento
+  mimeType    String?
+  createdAt   DateTime       @default(now())
+
+  versioni DocumentoVersione[]
+  evidenze Evidence[]
+
+  @@index([misuraId])
+}
+
+// Ogni fetch di un documento che risulta effettivamente cambiato (sha256
+// diverso dall'ultima versione nota) crea una nuova riga qui — mai
+// sovrascrivere (specifica, §19: "Non sovrascrivere la versione
+// precedente"). testoEstratto è il testo già parsato (Postgres al posto
+// dell'object storage S3 della specifica: stessa garanzia — mai
+// riprocessare senza l'originale — senza bisogno di un bucket dedicato).
+model DocumentoVersione {
+  id             String             @id @default(cuid())
+  documentoId    String
+  documento      DocumentoUfficiale @relation(fields: [documentoId], references: [id], onDelete: Cascade)
+  sha256         String
+  fetchedAt      DateTime           @default(now())
+  pubblicatoIl   DateTime?
+  rawSnapshotId  String?            @unique
+  rawSnapshot    RawSnapshot?       @relation(fields: [rawSnapshotId], references: [id], onDelete: SetNull)
+  testoEstratto  String?
+  numeroPagine   Int?
+  versioneParser String?
+
+  evidenze Evidence[]
+
+  @@index([documentoId, fetchedAt])
+}
+
+// Copia raw di OGNI fetch da una fonte (specifica, §14: "Mai elaborare una
+// fonte senza conservarne una copia raw") — non solo dei documenti che
+// diventano DocumentoVersione. In Postgres invece del pattern
+// `raw/{source_id}/{yyyy}/{mm}/{dd}/{sha256}` su S3 della specifica: stesso
+// scopo (audit, replay, regression test), storage diverso perché questo
+// progetto non ha un bucket S3-compatibile.
+model RawSnapshot {
+  id          String   @id @default(cuid())
+  fonteId     String
+  fonte       Fonte    @relation(fields: [fonteId], references: [id], onDelete: Cascade)
+  url         String
+  fetchedAt   DateTime @default(now())
+  statusCode  Int?
+  contentType String?
+  sha256      String
+  corpo       String // contenuto raw (HTML/JSON/CSV testuale); i PDF vivono solo come DocumentoVersione.testoEstratto già parsato
+  createdAt   DateTime @default(now())
+
+  documentoVersione DocumentoVersione?
+
+  @@index([fonteId, sha256])
+  @@index([fonteId, fetchedAt])
+}
+
+enum StatoVerificaEvidence {
+  SUPPORTATA
+  PARZIALMENTE_SUPPORTATA
+  NON_SUPPORTATA
+  CONTRADDETTA
+}
+
+enum MetodoEstrazione {
+  OPEN_DATA
+  REGEX
+  TABELLA
+  LLM
+  MANUALE
+  DERIVATO
+}
+
+// Evidence per campo (specifica, §26 "Evidence-first extraction" — una
+// delle regole più importanti della specifica): nessun campo può essere
+// considerato verificato senza un riferimento a un documento ufficiale.
+// `campo` è il nome del campo su Misura che questa evidence sostiene (es.
+// "dataScadenza", "tettoMassimo", "atecoAmmessi").
+model Evidence {
+  id                  String                @id @default(cuid())
+  misuraId            String
+  misura              Misura                @relation(fields: [misuraId], references: [id], onDelete: Cascade)
+  campo               String
+  documentoId         String?
+  documento           DocumentoUfficiale?   @relation(fields: [documentoId], references: [id], onDelete: SetNull)
+  documentoVersioneId String?
+  documentoVersione   DocumentoVersione?    @relation(fields: [documentoVersioneId], references: [id], onDelete: SetNull)
+  pagina              Int?
+  sezione             String?
+  estrattoTesto       String?
+  confidence          Decimal               @db.Decimal(5, 4)
+  statoVerifica       StatoVerificaEvidence
+  metodoEstrazione    MetodoEstrazione
+  createdAt           DateTime              @default(now())
+
+  @@index([misuraId, campo])
+}
+
+enum TipoEventoBando {
+  SCOPERTO
+  DOCUMENTO_AGGIUNTO
+  DOCUMENTO_CAMBIATO
+  ESTRATTO
+  VERIFICATO
+  PUBBLICATO
+  AGGIORNATO
+  SCADENZA_PROROGATA
+  APERTO
+  CHIUSO
+  SOSPESO
+  FONDI_ESAURITI
+  ANNULLATO
+  RIAPERTO
+  CONFLITTO_FONTI
+  ERRORE_FONTE
+  OVERRIDE_MANUALE
+}
+
+// Log eventi append-only (specifica, §33) — mai aggiornato/cancellato,
+// solo aggiunto. Permette di mostrare in dashboard frasi come "Scadenza
+// prorogata dal 30/09 al 31/10" invece di un update silenzioso del record.
+model EventoBando {
+  id        String          @id @default(cuid())
+  misuraId  String
+  misura    Misura          @relation(fields: [misuraId], references: [id], onDelete: Cascade)
+  tipo      TipoEventoBando
+  dettaglio Json?
+  createdAt DateTime        @default(now())
+
+  @@index([misuraId, createdAt])
 }
 
 // ---------------------------------------------------------------------------
