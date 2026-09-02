@@ -133,7 +133,7 @@ export default function ImportaProspectPage() {
                 onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
               />
             </label>
-            {erroreFile && <p className="mt-4 text-sm text-brand-700">{erroreFile}</p>}
+            {erroreFile && <p className="mt-4 text-sm text-danger-700">{erroreFile}</p>}
           </CardBody>
         </Card>
       )}
@@ -213,8 +213,8 @@ export default function ImportaProspectPage() {
                 <tbody>
                   {righeMappate.slice(0, 5).map((r, i) => (
                     <tr key={i} className="border-t border-ink/[0.04]">
-                      <td className="px-3 py-2">{r.ragioneSociale || <span className="text-brand-600">mancante</span>}</td>
-                      <td className="px-3 py-2">{r.piva || <span className="text-brand-600">mancante</span>}</td>
+                      <td className="px-3 py-2">{r.ragioneSociale || <span className="text-danger-600">mancante</span>}</td>
+                      <td className="px-3 py-2">{r.piva || <span className="text-danger-600">mancante</span>}</td>
                       <td className="px-3 py-2">{r.ateco ?? "—"}</td>
                       <td className="px-3 py-2">{r.regione ?? "—"}</td>
                       <td className="px-3 py-2">{r.fatturato ?? "—"}</td>
@@ -248,7 +248,7 @@ export default function ImportaProspectPage() {
               {risultato.creati} nuovi · {risultato.aggiornati} aggiornati · {risultato.scartati} scartati
             </p>
             {risultato.erroriRiga.length > 0 && (
-              <div className="mx-auto mt-4 max-h-40 max-w-md overflow-y-auto rounded-lg bg-brand-50 p-3 text-left text-xs text-brand-700">
+              <div className="mx-auto mt-4 max-h-40 max-w-md overflow-y-auto rounded-lg bg-danger-50 p-3 text-left text-xs text-danger-700">
                 {risultato.erroriRiga.map((e, i) => (
                   <p key={i}>Riga {e.riga}: {e.errore}</p>
                 ))}

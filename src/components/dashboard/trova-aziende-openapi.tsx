@@ -135,7 +135,7 @@ export function TrovaAziendeOpenApi({ misuraId, onCompletato }: { misuraId: stri
                 )}
               </>
             ) : (
-              <p className="text-brand-700">Ricerca non riuscita: {risultato.messaggioErrore}</p>
+              <p className="text-danger-700">Ricerca non riuscita: {risultato.messaggioErrore}</p>
             )}
           </div>
         )}

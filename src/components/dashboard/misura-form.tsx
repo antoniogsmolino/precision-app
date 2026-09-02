@@ -181,7 +181,7 @@ export function MisuraForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {errori.length > 0 && (
-        <div className="rounded-xl bg-brand-50 px-4 py-3 text-sm text-brand-700">
+        <div className="rounded-xl bg-danger-50 px-4 py-3 text-sm text-danger-700">
           <ul className="list-inside list-disc">
             {errori.map((e, i) => (
               <li key={i}>{e}</li>
@@ -432,12 +432,12 @@ export function MisuraForm({
         {misuraId && (
           <div>
             {eliminazione === "inattiva" ? (
-              <Button type="button" variant="ghost" className="text-brand-600" onClick={() => setEliminazione("conferma")}>
+              <Button type="button" variant="ghost" className="text-danger-600" onClick={() => setEliminazione("conferma")}>
                 Elimina misura
               </Button>
             ) : (
-              <div className="flex items-center gap-2 rounded-lg border border-brand-200 bg-brand-50 px-3 py-1.5">
-                <span className="text-[13px] text-brand-700">Eliminare definitivamente questa misura?</span>
+              <div className="flex items-center gap-2 rounded-lg border border-danger-200 bg-danger-50 px-3 py-1.5">
+                <span className="text-[13px] text-danger-700">Eliminare definitivamente questa misura?</span>
                 <Button
                   type="button"
                   variant="danger"
@@ -472,7 +472,7 @@ function Field({ label, required, children }: { label: string; required?: boolea
     <div>
       <Label>
         {label}
-        {required && <span className="text-brand-500"> *</span>}
+        {required && <span className="text-danger-500"> *</span>}
       </Label>
       {children}
     </div>

@@ -138,3 +138,17 @@ export function ordinaMisurePerUrgenza<T extends MisuraFiltrabile>(misure: T[]):
     return new Date(a.dataScadenza).getTime() - new Date(b.dataScadenza).getTime();
   });
 }
+
+/** I due criteri di ordinamento esposti in dashboard (specifica UI: "prima
+ * i più vicini alla scadenza" oppure "prima i più recenti"). */
+export type OrdinamentoMisure = "scadenza" | "uscita";
+
+/**
+ * Ordina per data di uscita (apertura) decrescente: i bandi più recenti
+ * per primi. A differenza di `ordinaMisurePerUrgenza`, qui non c'è
+ * priorità di stato — è un ordinamento puramente cronologico sulla data
+ * di apertura, indipendente da quanto la misura sia "urgente" ora.
+ */
+export function ordinaMisurePerUscita<T extends MisuraFiltrabile>(misure: T[]): T[] {
+  return [...misure].sort((a, b) => new Date(b.dataApertura).getTime() - new Date(a.dataApertura).getTime());
+}

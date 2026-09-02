@@ -19,7 +19,7 @@ const VARIANT_CLASSES: Record<Variant, string> = {
   // di navigazione ink della dashboard) — mai combinare le due varianti
   // sullo stesso elemento.
   ghostInvert: "bg-transparent text-white/55 hover:bg-white/10 hover:text-white focus-visible:ring-white/30",
-  danger: "bg-brand-600 text-white hover:bg-brand-700 focus-visible:ring-brand-400",
+  danger: "bg-danger-600 text-white hover:bg-danger-700 focus-visible:ring-danger-400",
   glass:
     "glass-surface text-ink hover:bg-white/80 focus-visible:ring-brand-300 shadow-glass",
   dark: "bg-ink text-white hover:bg-ink/85 active:bg-ink/90 shadow-sm shadow-ink/20 focus-visible:ring-ink/40",

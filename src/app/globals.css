@@ -10,28 +10,41 @@
    * — ricolorare il prodotto significa ridefinire questi valori, non
    * toccare Tailwind config o i componenti.
    *
-   * Rampa "brand" ancorata su #E41F25 / #C91F12 — i token PRIMARY /
-   * PRIMARY HOVER dati esplicitamente dalla specifica UI del team
-   * ("SaaS Layout Specification", §1 e §64: "la palette del riferimento
-   * originale va ignorata, usare questi token"). NOTA: questo è diverso
-   * da #FF2D16 usato in una versione precedente di questo file, preso dal
-   * documento di estrazione del sito pubblico reale
-   * (moloquattropuntozero.it) — le due fonti si contraddicono su questo
-   * singolo valore. Ho scelto #E41F25 perché è quello dato più di
-   * recente ed esplicitamente per la UI di questo prodotto; se non è la
-   * scelta giusta, correggibile qui in un punto solo.
+   * Rampa "brand" ancorata su #198FD9 — il blu MOLO 4.0, lo stesso già
+   * verificato come colore esatto del sito pubblico reale
+   * (moloquattropuntozero.it, awb-color5, vedi token "navigation" sotto).
+   * Richiesto esplicitamente dal team per sostituire il rosso #E41F25/
+   * #C91F12 usato in precedenza (deciso a sua volta ignorando il rosso
+   * reale del sito, #FF2D16, su indicazione di una spec di UI precedente)
+   * — il rosso non è sparito: è diventato la rampa "danger" qui sotto,
+   * dedicata a errori/distruttivo, per non confondere le due cose.
    * --------------------------------------------------------------------- */
-  --brand-50: 358 100% 97%;
-  --brand-100: 358 92% 94%;
-  --brand-200: 358 88% 88%;
-  --brand-300: 358 84% 79%;
-  --brand-400: 358 81% 68%;
-  --brand-500: 358 79% 58%;
-  --brand-600: 358 78% 51%; /* #E41F25 — PRIMARY */
-  --brand-700: 4 84% 43%; /* #C91F12 — PRIMARY HOVER */
-  --brand-800: 4 84% 43%;
-  --brand-900: 4 78% 30%;
-  --brand-950: 4 70% 18%;
+  --brand-50: 203 85% 96%;
+  --brand-100: 203 82% 91%;
+  --brand-200: 203 80% 84%;
+  --brand-300: 203 78% 73%;
+  --brand-400: 203 78% 61%;
+  --brand-500: 203 79% 54%;
+  --brand-600: 203 79% 47%; /* #198FD9 — PRIMARY, blu MOLO 4.0 */
+  --brand-700: 206 84% 38%; /* PRIMARY HOVER */
+  --brand-800: 208 82% 30%;
+  --brand-900: 210 78% 22%;
+  --brand-950: 212 72% 14%;
+
+  /* DANGER — la vecchia rampa "brand" (#E41F25 / #C91F12), riservata ora
+   * solo a errori, conferme distruttive e campi obbligatori: mai per CTA
+   * primarie, ora blu (vedi sopra). */
+  --danger-50: 358 100% 97%;
+  --danger-100: 358 92% 94%;
+  --danger-200: 358 88% 88%;
+  --danger-300: 358 84% 79%;
+  --danger-400: 358 81% 68%;
+  --danger-500: 358 79% 58%;
+  --danger-600: 358 78% 51%; /* #E41F25 */
+  --danger-700: 4 84% 43%; /* #C91F12 */
+  --danger-800: 4 84% 43%;
+  --danger-900: 4 78% 30%;
+  --danger-950: 4 70% 18%;
 
   /* INK — awb-color8, #2B2E34: testi principali, footer, superfici scure. */
   --ink: 220 9% 19%;

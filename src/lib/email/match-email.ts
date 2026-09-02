@@ -42,9 +42,9 @@ function costruisciHtml(ragioneSociale: string, misure: MisuraPerEmail[]): strin
     .join("");
 
   const contatti = [
-    telefono ? `<a href="tel:${escapeHtml(telefono)}" style="color:#E41F25;text-decoration:none;">${escapeHtml(telefono)}</a>` : null,
+    telefono ? `<a href="tel:${escapeHtml(telefono)}" style="color:#198FD9;text-decoration:none;">${escapeHtml(telefono)}</a>` : null,
     bookingUrl
-      ? `<a href="${escapeHtml(bookingUrl)}" style="color:#E41F25;text-decoration:none;">Prenota una consulenza gratuita</a>`
+      ? `<a href="${escapeHtml(bookingUrl)}" style="color:#198FD9;text-decoration:none;">Prenota una consulenza gratuita</a>`
       : null,
   ]
     .filter(Boolean)
@@ -52,7 +52,7 @@ function costruisciHtml(ragioneSociale: string, misure: MisuraPerEmail[]): strin
 
   return `
   <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;max-width:560px;margin:0 auto;padding:32px 20px;color:#2B2E34;">
-    <p style="margin:0 0 24px;font-size:20px;font-weight:800;color:#E41F25;">MOLO 4.0</p>
+    <p style="margin:0 0 24px;font-size:20px;font-weight:800;color:#198FD9;">MOLO 4.0</p>
     <h1 style="margin:0 0 8px;font-size:20px;">Ciao ${escapeHtml(ragioneSociale)},</h1>
     <p style="margin:0 0 24px;font-size:14px;color:#5a5f6a;line-height:1.6;">
       abbiamo controllato la tua Partita IVA sui bandi e incentivi attivi monitorati da MOLO 4.0.

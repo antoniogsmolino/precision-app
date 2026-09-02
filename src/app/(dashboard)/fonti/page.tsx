@@ -32,7 +32,7 @@ const LIVELLO_LABEL: Record<string, string> = {
 
 const ESITO_STYLE: Record<string, string> = {
   SUCCESSO: "bg-growth-50 text-growth-700 border-growth-500/25",
-  ERRORE: "bg-brand-50 text-brand-700 border-brand-200",
+  ERRORE: "bg-danger-50 text-danger-700 border-danger-200",
   BLOCCATO_ROBOTS: "bg-urgency-50 text-urgency-700 border-urgency-500/25",
 };
 
@@ -50,7 +50,7 @@ interface RapportoCoverage {
 }
 
 const SEVERITA_STYLE: Record<Anomalia["severita"], string> = {
-  P0: "bg-brand-50 text-brand-700 border-brand-200",
+  P0: "bg-danger-50 text-danger-700 border-danger-200",
   P1: "bg-urgency-50 text-urgency-700 border-urgency-500/25",
   P2: "bg-ocra-50 text-ocra-700 border-ocra-500/25",
   P3: "bg-ink/[0.04] text-ink/50 border-ink/10",
@@ -155,7 +155,7 @@ export default function FontiPage() {
         <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-5">
           <RiepilogoTile label="Fonti totali" valore={riepilogo.totale} />
           <RiepilogoTile label="Ultimo scan ok" valore={riepilogo.successo} colore="text-growth-700" />
-          <RiepilogoTile label="In errore" valore={riepilogo.errore} colore="text-brand-600" />
+          <RiepilogoTile label="In errore" valore={riepilogo.errore} colore="text-danger-600" />
           <RiepilogoTile label="Mai scansionate" valore={riepilogo.maiScansionate} colore="text-urgency-700" />
           <RiepilogoTile label="Misure rilevate" valore={riepilogo.misureTotali} colore="text-navigation-600" />
         </div>
@@ -243,7 +243,7 @@ export default function FontiPage() {
                       : "mai scansionata"}
                   </p>
                   {ultimoLog?.messaggioErrore && (
-                    <p className="mt-1 text-xs text-brand-600">{ultimoLog.messaggioErrore}</p>
+                    <p className="mt-1 text-xs text-danger-600">{ultimoLog.messaggioErrore}</p>
                   )}
                 </div>
 

@@ -84,7 +84,7 @@ export default function LoginPage() {
             </div>
 
             {errore && (
-              <p className="mb-4 rounded-xl bg-brand-50 px-3 py-2 text-sm text-brand-700 animate-fade-in">
+              <p className="mb-4 rounded-xl bg-danger-50 px-3 py-2 text-sm text-danger-700 animate-fade-in">
                 {errore}
               </p>
             )}

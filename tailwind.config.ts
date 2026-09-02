@@ -20,11 +20,26 @@ const config: Config = {
           300: token("brand-300"),
           400: token("brand-400"),
           500: token("brand-500"),
-          600: token("brand-600"), // #E41F25 — PRIMARY
-          700: token("brand-700"), // #C91F12 — PRIMARY HOVER
+          600: token("brand-600"), // #198FD9 — PRIMARY, blu MOLO 4.0
+          700: token("brand-700"), // PRIMARY HOVER
           800: token("brand-800"),
           900: token("brand-900"),
           950: token("brand-950"),
+        },
+        // DANGER — la vecchia rampa rossa (#E41F25/#C91F12), ora riservata a
+        // errori e conferme distruttive: vedi commento in globals.css.
+        danger: {
+          50: token("danger-50"),
+          100: token("danger-100"),
+          200: token("danger-200"),
+          300: token("danger-300"),
+          400: token("danger-400"),
+          500: token("danger-500"),
+          600: token("danger-600"), // #E41F25
+          700: token("danger-700"), // #C91F12
+          800: token("danger-800"),
+          900: token("danger-900"),
+          950: token("danger-950"),
         },
         ink: token("ink"), // #2B2E34
         growth: {
@@ -70,7 +85,7 @@ const config: Config = {
         card: "0 1px 2px 0 rgb(43 46 52 / 0.04), 0 1px 3px 0 rgb(43 46 52 / 0.06)",
         "card-hover": "0 8px 20px -4px rgb(43 46 52 / 0.12), 0 3px 8px -3px rgb(43 46 52 / 0.08)",
         glass: "0 8px 30px -12px rgb(43 46 52 / 0.22), 0 1px 1px 0 rgb(255 255 255 / 0.4) inset",
-        glow: "0 0 0 1px rgb(228 31 37 / 0.08), 0 8px 24px -8px rgb(228 31 37 / 0.35)",
+        glow: "0 0 0 1px rgb(25 143 217 / 0.10), 0 8px 24px -8px rgb(25 143 217 / 0.40)",
       },
       keyframes: {
         "fade-in": {
