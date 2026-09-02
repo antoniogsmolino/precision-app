@@ -14,6 +14,8 @@ interface Fonte {
   regione: string | null;
   url: string;
   parserKey: string;
+  /** Se impostato, la fonte è gestita dal nuovo motore bandi (src/lib/motore-bandi/) — "Scansiona ora" deve chiamare l'endpoint corretto, non quello del vecchio motore. */
+  adapterKey: string | null;
   attiva: boolean;
   frequenzaOreScan: number;
   ultimaScansioneAt: string | null;
@@ -53,9 +55,14 @@ export default function FontiPage() {
 
   useEffect(ricarica, []);
 
-  async function scansionaOra(id: string) {
-    setScansioneInCorso(id);
-    await fetch(`/api/fonti/${id}/scan`, { method: "POST" });
+  async function scansionaOra(fonte: Fonte) {
+    setScansioneInCorso(fonte.id);
+    // Fonte del nuovo motore bandi (adapterKey impostato) vs vecchio
+    // motore (parserKey, HTML): endpoint diverso, altrimenti il vecchio
+    // motore risponderebbe "nessun parser registrato" su una fonte che
+    // non gli appartiene.
+    const endpoint = fonte.adapterKey ? `/api/fonti/${fonte.id}/ingest-motore-bandi` : `/api/fonti/${fonte.id}/scan`;
+    await fetch(endpoint, { method: "POST" });
     setScansioneInCorso(null);
     ricarica();
   }
@@ -194,7 +201,7 @@ export default function FontiPage() {
                     variant="secondary"
                     size="sm"
                     disabled={scansioneInCorso === f.id}
-                    onClick={() => scansionaOra(f.id)}
+                    onClick={() => scansionaOra(f)}
                   >
                     {scansioneInCorso === f.id ? "Scansione…" : "Scansiona ora"}
                   </Button>

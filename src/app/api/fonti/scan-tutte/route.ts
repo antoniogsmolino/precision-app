@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { scanFontiDovute } from "@/lib/monitoring/engine";
+import { ingestFontiDovute } from "@/lib/motore-bandi/ingest";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -19,8 +20,16 @@ export const maxDuration = 300;
  * aver già scansionato tutto una volta, ogni click successivo saltava
  * quasi tutte le fonti come "non ancora dovute" anche quando il team
  * voleva verificare subito l'effetto di una correzione al codice.
+ *
+ * Include sia le fonti del vecchio motore (parserKey) sia quelle del
+ * nuovo motore bandi (adapterKey) — risultati uniti in un solo array,
+ * così il frontend (che conta successi/errori/saltate su `risultati`)
+ * non ha bisogno di distinguere i due motori.
  */
 export async function POST() {
-  const risultati = await scanFontiDovute({ forza: true });
-  return NextResponse.json({ eseguitoAlle: new Date().toISOString(), risultati });
+  const [vecchioMotore, motoreBandi] = await Promise.all([
+    scanFontiDovute({ forza: true }),
+    ingestFontiDovute({ forza: true }),
+  ]);
+  return NextResponse.json({ eseguitoAlle: new Date().toISOString(), risultati: [...vecchioMotore, ...motoreBandi] });
 }
