@@ -70,7 +70,7 @@ const config: Config = {
         card: "0 1px 2px 0 rgb(43 46 52 / 0.04), 0 1px 3px 0 rgb(43 46 52 / 0.06)",
         "card-hover": "0 8px 20px -4px rgb(43 46 52 / 0.12), 0 3px 8px -3px rgb(43 46 52 / 0.08)",
         glass: "0 8px 30px -12px rgb(43 46 52 / 0.22), 0 1px 1px 0 rgb(255 255 255 / 0.4) inset",
-        glow: "0 0 0 1px rgb(255 45 22 / 0.1), 0 8px 24px -8px rgb(255 45 22 / 0.4)",
+        glow: "0 0 0 1px rgb(228 31 37 / 0.08), 0 8px 24px -8px rgb(228 31 37 / 0.35)",
       },
       keyframes: {
         "fade-in": {
@@ -94,10 +94,15 @@ const config: Config = {
       transitionTimingFunction: {
         glass: "cubic-bezier(0.22, 1, 0.36, 1)",
       },
+      // Gerarchia di raggi ricalcata sulla specifica UI fornita dal team
+      // (§6/§60): "più il componente è grande, maggiore è il radius" — non
+      // lo stesso valore ovunque. xl = card piccole/medie (stat tile, item
+      // di lista), 2xl = card di contenuto principali, 3xl = solo l'app
+      // shell più esterna (vedi (dashboard)/layout.tsx).
       borderRadius: {
-        xl: "0.875rem",
-        "2xl": "1.25rem",
-        "3xl": "1.75rem",
+        xl: "1.125rem", // 18px
+        "2xl": "1.375rem", // 22px
+        "3xl": "1.75rem", // 28px
       },
     },
   },

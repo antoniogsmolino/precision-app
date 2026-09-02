@@ -17,7 +17,7 @@ import clsx from "clsx";
 type Tono = "chiaro" | "scuro" | "growth" | "navigation" | "ocra" | "brand";
 
 const TONO_CLASSI: Record<Tono, string> = {
-  chiaro: "bg-white border border-black/[0.06] text-ink",
+  chiaro: "bg-white border border-black/[0.08] text-ink",
   scuro: "bg-ink border border-white/[0.06] text-white",
   growth: "bg-growth-50 border border-growth-500/20 text-ink",
   navigation: "bg-navigation-50 border border-navigation-500/20 text-ink",
@@ -32,7 +32,7 @@ export function Card({
 }: HTMLAttributes<HTMLDivElement> & { tono?: Tono }) {
   return (
     <div
-      className={clsx("rounded-3xl shadow-card transition-shadow", TONO_CLASSI[tono], className)}
+      className={clsx("rounded-2xl shadow-card transition-shadow", TONO_CLASSI[tono], className)}
       {...props}
     />
   );
@@ -42,7 +42,7 @@ export function CardInteractive({ className, ...props }: HTMLAttributes<HTMLDivE
   return (
     <div
       className={clsx(
-        "rounded-3xl border border-black/[0.06] bg-white shadow-card cursor-pointer",
+        "rounded-2xl border border-black/[0.06] bg-white shadow-card cursor-pointer",
         "transition-[transform,box-shadow,border-color] duration-300 ease-glass",
         "hover:-translate-y-0.5 hover:shadow-card-hover hover:border-brand-200/70",
         className,

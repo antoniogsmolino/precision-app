@@ -12,32 +12,52 @@ dopo quello a regole — vedi "Filtro di rilevanza AI" più sotto.
 
 ### Design system
 
-Palette allineata al sito pubblico reale **moloquattropuntozero.it** (non
-più una scelta interna), definita in `src/app/globals.css` (blocco `:root`)
-e mappata su Tailwind in `tailwind.config.ts` — ricolorare il prodotto
-significa editare quelle variabili, non i componenti:
+Definito in `src/app/globals.css` (blocco `:root`) e mappato su Tailwind in
+`tailwind.config.ts` — ricolorare il prodotto significa editare quelle
+variabili, non i componenti:
 
-- `--brand-600` = `#FF2D16` (PRIMARY reale del sito, `--awb-color7`) /
-  `--brand-700`/`800` = antracite `hsl(220 4% 9%)` (hover/active — il sito
-  reale passa a un fondo scuro in hover, non a un rosso più scuro)
-- `--ink` = `#2B2E34` (titoli, testo, superfici scure — `--awb-color8`)
-- `--growth-*` = `#65BD7D` (`--awb-color4` — testo sempre `ink`, mai bianco sopra)
-- `--navigation-*` = `#198FD9` (`--awb-color5`)
-- `--ocra-*` = `#E4A858` (`--awb-custom_color_1`, terzo accento per varietà nelle card)
-- `--surface-alt` = `#F9F9FB` (`--awb-color2`) / `--surface-muted` = `#F2F3F5` (`--awb-color3`, fondo body del sito reale)
-- `--urgency-*`: ambra non presente sul sito, introdotto per lo stato "in
-  scadenza" per non confonderlo visivamente col rosso PRIMARY (CTA)
-- Font **Poppins** (era Inter — mai usato sul sito pubblico reale)
+- `--brand-600` = `#E41F25` (PRIMARY) / `--brand-700`/`800` = `#C91F12`
+  (PRIMARY HOVER) — token dati esplicitamente dalla specifica UI del team
+  ("SaaS Layout Specification"). **Nota**: un documento precedente
+  (estrazione del design system dal sito pubblico moloquattropuntozero.it)
+  indicava `#FF2D16` come rosso reale del sito — le due fonti si
+  contraddicono su questo valore; scelto `#E41F25` perché è il più recente
+  e il più esplicito per la UI di questo prodotto specifico. Correggibile
+  in un punto solo se non è la scelta giusta.
+- `--ink` = `#2B2E34` (titoli, testo, superfici scure)
+- `--growth-*` = `#65BD7D` (testo sempre `ink` sopra, mai bianco)
+- `--navigation-*` = `#198FD9`
+- `--ocra-*` = `#E4A858` (terzo accento per varietà nelle card)
+- `--surface-alt` = `#F9F9FB` / `--surface-muted` = `#F2F3F5`
+- `--urgency-*`: ambra per lo stato "in scadenza", per non confonderlo
+  visivamente col rosso PRIMARY (riservato alle CTA)
+- Font **Poppins** (era Inter) — la specifica UI più recente suggerisce
+  Inter/Manrope/DM Sans per il *carattere* del riferimento, ma Poppins è
+  quello verificato come font realmente in uso sul sito pubblico MOLO:
+  scelta deliberata di tenerlo, il "carattere pulito neo-grotesk" richiesto
+  dalla specifica non dipende da quale delle due famiglie si usa.
 
-Sidebar desktop della dashboard in stile CRM a due rail scure (icone +
-statistiche/navigazione, vedi `icon-rail.tsx`/`stat-tiles.tsx` in
-`src/components/dashboard/`) ricalcata su una reference fornita dal team e
-ricolorata su questa palette. Superfici traslucide (`.glass-surface`,
-`.glass-surface-solid` in `globals.css`, o `<CardGlass>` in
-`src/components/ui/card.tsx`) restano per login e header mobile.
-`<Card tono="...">` (`chiaro`/`scuro`/`growth`/`navigation`/`ocra`/`brand`)
-per superfici colorate piene — varianti interne al componente, non
-className passata dall'esterno (vedi il commento in `card.tsx` sul perché).
+**App shell** (`(dashboard)/layout.tsx`): su desktop l'intera dashboard
+vive dentro un'unica superficie flottante con angoli molto arrotondati
+(`rounded-[28px]`, margine 16px, altezza fissa `100vh - 32px`) — non un
+semplice sfondo pieno pagina. Su mobile niente shell (pagina piena, come
+prima). Dentro lo shell, sidebar a **due rail scure** (icone + statistiche/
+navigazione, `icon-rail.tsx`/`stat-tiles.tsx`) e main a scroll indipendente
+dalla sidebar.
+
+**Gerarchia dei raggi** (non uniforme: più un componente è grande, più il
+raggio è generoso — vedi commenti in `tailwind.config.ts`): `3xl` (28px)
+solo per l'app shell più esterna; `2xl` (22px) per le card di contenuto
+principali (`<Card>`); `xl` (18px) per card piccole/medie (stat tile);
+pulsanti e badge restano a `rounded-full`. Selezione (voce di nav attiva)
+sempre a **background pieno** (`bg-brand-600`), mai solo un bordo/tinta.
+
+Superfici traslucide (`.glass-surface`, `.glass-surface-solid` in
+`globals.css`, o `<CardGlass>` in `src/components/ui/card.tsx`) restano per
+login e header mobile. `<Card tono="...">`
+(`chiaro`/`scuro`/`growth`/`navigation`/`ocra`/`brand`) per superfici
+colorate piene — varianti interne al componente, non className passata
+dall'esterno (vedi il commento in `card.tsx` sul perché).
 
 ## Stato del progetto
 

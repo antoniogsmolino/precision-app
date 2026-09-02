@@ -6,31 +6,32 @@
 
 :root {
   /* -----------------------------------------------------------------------
-   * Design tokens MOLO 4.0 — allineati alla palette REALE del sito pubblico
-   * (moloquattropuntozero.it, vedi documento di estrazione del design
-   * system del 2 settembre 2026), non più a un rosso scelto internamente.
-   * Tutto il colore dell'interfaccia deriva da qui — ricolorare il
-   * prodotto significa ridefinire questi valori, non toccare Tailwind
-   * config o i componenti.
+   * Design tokens MOLO 4.0. Tutto il colore dell'interfaccia deriva da qui
+   * — ricolorare il prodotto significa ridefinire questi valori, non
+   * toccare Tailwind config o i componenti.
    *
-   * Rampa "brand" ancorata su --awb-color7 = #FF2D16 (il rosso/arancio
-   * delle CTA e del marchio sul sito reale, non il rosso #E41F25 usato
-   * nella build precedente). Hover: NON un rosso più scuro come prima —
-   * sul sito reale ogni CTA passa a un fondo antracite (~#161719,
-   * hsl(220 4% 9%)) in hover, testo bianco. Vedi Button in
-   * components/ui/button.tsx.
+   * Rampa "brand" ancorata su #E41F25 / #C91F12 — i token PRIMARY /
+   * PRIMARY HOVER dati esplicitamente dalla specifica UI del team
+   * ("SaaS Layout Specification", §1 e §64: "la palette del riferimento
+   * originale va ignorata, usare questi token"). NOTA: questo è diverso
+   * da #FF2D16 usato in una versione precedente di questo file, preso dal
+   * documento di estrazione del sito pubblico reale
+   * (moloquattropuntozero.it) — le due fonti si contraddicono su questo
+   * singolo valore. Ho scelto #E41F25 perché è quello dato più di
+   * recente ed esplicitamente per la UI di questo prodotto; se non è la
+   * scelta giusta, correggibile qui in un punto solo.
    * --------------------------------------------------------------------- */
-  --brand-50: 14 100% 97%;
-  --brand-100: 14 100% 93%;
-  --brand-200: 14 100% 85%;
-  --brand-300: 14 100% 74%;
-  --brand-400: 14 100% 63%;
-  --brand-500: 12 100% 55%;
-  --brand-600: 11 100% 53%; /* #FF2D16 — awb-color7, PRIMARY reale MOLO */
-  --brand-700: 220 4% 9%; /* ~#161719 — hover CTA reale (antracite, non rosso scuro) */
-  --brand-800: 220 4% 9%;
-  --brand-900: 220 6% 14%;
-  --brand-950: 220 9% 10%;
+  --brand-50: 358 100% 97%;
+  --brand-100: 358 92% 94%;
+  --brand-200: 358 88% 88%;
+  --brand-300: 358 84% 79%;
+  --brand-400: 358 81% 68%;
+  --brand-500: 358 79% 58%;
+  --brand-600: 358 78% 51%; /* #E41F25 — PRIMARY */
+  --brand-700: 4 84% 43%; /* #C91F12 — PRIMARY HOVER */
+  --brand-800: 4 84% 43%;
+  --brand-900: 4 78% 30%;
+  --brand-950: 4 70% 18%;
 
   /* INK — awb-color8, #2B2E34: testi principali, footer, superfici scure. */
   --ink: 220 9% 19%;

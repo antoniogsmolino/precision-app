@@ -28,23 +28,21 @@ export function SidebarNav({ tono = "chiaro" }: { tono?: "chiaro" | "scuro" }) {
             key={href}
             href={href}
             className={clsx(
-              "flex items-center gap-2.5 rounded-full px-3 py-2 text-sm font-medium",
+              "flex items-center gap-2.5 rounded-full px-3 py-2.5 text-sm font-medium",
               "transition-[background-color,color] duration-200 ease-glass",
+              // Selezione "piena", non un bordo/tinta sottile (specifica
+              // UI, §43: "la card selezionata deve sembrare una card
+              // piena" — background pieno, non solo bordo/tinta).
               scuro
                 ? active
-                  ? "bg-white/[0.1] text-white shadow-sm"
+                  ? "bg-brand-600 text-white shadow-glow"
                   : "text-white/50 hover:bg-white/[0.06] hover:text-white/90"
                 : active
-                  ? "bg-brand-50 text-brand-700 shadow-sm shadow-brand-600/10"
+                  ? "bg-brand-600 text-white shadow-glow"
                   : "text-ink/50 hover:bg-ink/[0.06] hover:text-ink/90",
             )}
           >
-            <Icon
-              className={clsx(
-                "h-4 w-4 shrink-0",
-                scuro ? (active ? "text-brand-500" : "text-white/35") : active ? "text-brand-600" : "text-ink/40",
-              )}
-            />
+            <Icon className={clsx("h-4 w-4 shrink-0", active ? "text-white" : scuro ? "text-white/35" : "text-ink/40")} />
             {label}
           </Link>
         );
