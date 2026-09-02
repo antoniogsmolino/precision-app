@@ -12,3 +12,9 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
   const risultato = await ingestFonte(params.id, { forza: true });
   return NextResponse.json(risultato);
 }
+
+// Un feed Open Data può avere migliaia di record: anche col processing a
+// lotti (non più uno-alla-volta) meglio avere margine oltre al default —
+// stesso valore già usato per /scan-tutte e per il cron.
+export const dynamic = "force-dynamic";
+export const maxDuration = 300;

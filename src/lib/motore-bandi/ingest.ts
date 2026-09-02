@@ -1,11 +1,20 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { risolviAdapter } from "./adapters/registry";
 import { validaBandoNormalizzato, calcolaStatoPubblicazione } from "./validazione";
 import type { BandoNormalizzato, CampoConEvidenza } from "./adapters/tipi";
-import { ricalcolaMatchPerMisura } from "@/lib/matching/engine";
+import { ricalcolaTuttiIMatch } from "@/lib/matching/engine";
 import { verificaRobotsTxt } from "@/lib/monitoring/robots";
 import type { Fonte } from "@prisma/client";
+
+/** Dimensione dei lotti per le scritture in blocco (createMany) — abbastanza grande da ridurre drasticamente il numero di round-trip al database, abbastanza piccola da restare ben sotto i limiti di parametri di una singola query. */
+const DIMENSIONE_LOTTO = 500;
+/** Concorrenza per gli update individuali (nessun bulk-update nativo in Prisma con valori diversi per riga) — abbinata a un pool di connessioni tipico, non lo sommerge. */
+const CONCORRENZA_UPDATE = 20;
+
+function* inLotti<T>(elementi: T[], dimensione: number): Generator<T[]> {
+  for (let i = 0; i < elementi.length; i += dimensione) yield elementi.slice(i, i + dimensione);
+}
 
 const HTTP_TIMEOUT_ANOMALIA = 5; // consecutiveFailures oltre cui healthStatus passa a BLOCKED invece di FAILING
 
@@ -90,16 +99,17 @@ const CAMPI_EVIDENCE: Array<[string, keyof BandoNormalizzato]> = [
   ["regioniAmmesse", "regioniAmmesse"],
 ];
 
-async function scriviEvidence(misuraId: string, bando: BandoNormalizzato) {
-  const righe: {
-    misuraId: string;
-    campo: string;
-    estrattoTesto: string | null;
-    confidence: number;
-    statoVerifica: "SUPPORTATA" | "NON_SUPPORTATA";
-    metodoEstrazione: "OPEN_DATA" | "DERIVATO" | "MANUALE";
-  }[] = [];
+interface RigaEvidence {
+  misuraId: string;
+  campo: string;
+  estrattoTesto: string | null;
+  confidence: number;
+  statoVerifica: "SUPPORTATA" | "NON_SUPPORTATA";
+  metodoEstrazione: "OPEN_DATA" | "DERIVATO" | "MANUALE";
+}
 
+function costruisciRigheEvidence(misuraId: string, bando: BandoNormalizzato): RigaEvidence[] {
+  const righe: RigaEvidence[] = [];
   for (const [nomeCampo, chiave] of CAMPI_EVIDENCE) {
     const c = bando[chiave] as CampoConEvidenza<unknown>;
     // Nessuna evidence per un valore assente: la specifica vieta di
@@ -116,10 +126,30 @@ async function scriviEvidence(misuraId: string, bando: BandoNormalizzato) {
       metodoEstrazione: c.metodoEstrazione,
     });
   }
+  return righe;
+}
 
-  if (righe.length > 0) {
-    await prisma.evidence.createMany({ data: righe });
-  }
+function costruisciDatiComuni(bando: BandoNormalizzato) {
+  return {
+    titolo: bando.titolo.valore!,
+    ente: bando.ente.valore!,
+    descrizioneBreve: bando.descrizioneBreve.valore ?? bando.titolo.valore!,
+    descrizioneEstesa: bando.descrizioneEstesa.valore ?? bando.titolo.valore!,
+    tipoAgevolazione: bando.tipoAgevolazione.valore!,
+    tipoValore: bando.tipoValore.valore!,
+    importoFisso: bando.importoFisso.valore,
+    importoMax: bando.importoMax.valore,
+    percentuale: bando.percentuale.valore,
+    tettoMassimo: bando.tettoMassimo.valore,
+    dataApertura: bando.dataApertura.valore!,
+    dataScadenza: bando.dataScadenza.valore!,
+    scadenzaStimata: bando.scadenzaStimata,
+    atecoAmmessi: bando.atecoAmmessi.valore ?? [],
+    regioniAmmesse: bando.regioniAmmesse.valore ?? [],
+    linkFonteUfficiale: bando.linkFonteUfficiale.valore!,
+    statoDichiarato: bando.statoDichiarato,
+    statoPubblicazione: calcolaStatoPubblicazione(bando),
+  };
 }
 
 /**
@@ -199,6 +229,8 @@ export async function ingestFonte(fonteId: string, opts: { forza?: boolean } = {
       const bandiNormalizzati = adapter.normalize(grezzo);
       bandiTotali += bandiNormalizzati.length;
 
+      // --- Passata 1: validazione (in memoria, nessuna query) --------------
+      const validi: { bando: BandoNormalizzato; incentiviGovId: string | null }[] = [];
       for (const bando of bandiNormalizzati) {
         const validazione = validaBandoNormalizzato(bando);
         if (!validazione.valido) {
@@ -207,83 +239,102 @@ export async function ingestFonte(fonteId: string, opts: { forza?: boolean } = {
           continue;
         }
         bandiValidi += 1;
+        validi.push({ bando, incentiviGovId: bando.identificatoriEsterni.incentiviGovId ?? null });
+      }
 
-        const incentiviGovId = bando.identificatoriEsterni.incentiviGovId ?? null;
-        const esistente = incentiviGovId ? await prisma.misura.findUnique({ where: { incentiviGovId } }) : null;
+      // --- Passata 2: UNA sola query per sapere quali esistono già ---------
+      // (prima era un findUnique per bando: con un feed di migliaia di
+      // record, migliaia di round-trip sequenziali al database — abbastanza
+      // lento da far scadere il timeout di una funzione serverless. Trovato
+      // sul primo run reale contro Incentivi.gov.it, ~5.800 bandi.)
+      const idsConValore = validi.map((v) => v.incentiviGovId).filter((id): id is string => id !== null);
+      const esistentiRows = idsConValore.length > 0 ? await prisma.misura.findMany({ where: { incentiviGovId: { in: idsConValore } } }) : [];
+      const esistentiMap = new Map(esistentiRows.map((r) => [r.incentiviGovId as string, r]));
 
-        const datiComuni = {
-          titolo: bando.titolo.valore!,
-          ente: bando.ente.valore!,
-          descrizioneBreve: bando.descrizioneBreve.valore ?? bando.titolo.valore!,
-          descrizioneEstesa: bando.descrizioneEstesa.valore ?? bando.titolo.valore!,
-          tipoAgevolazione: bando.tipoAgevolazione.valore!,
-          tipoValore: bando.tipoValore.valore!,
-          importoFisso: bando.importoFisso.valore,
-          importoMax: bando.importoMax.valore,
-          percentuale: bando.percentuale.valore,
-          tettoMassimo: bando.tettoMassimo.valore,
-          dataApertura: bando.dataApertura.valore!,
-          dataScadenza: bando.dataScadenza.valore!,
-          scadenzaStimata: bando.scadenzaStimata,
-          atecoAmmessi: bando.atecoAmmessi.valore ?? [],
-          regioniAmmesse: bando.regioniAmmesse.valore ?? [],
-          linkFonteUfficiale: bando.linkFonteUfficiale.valore!,
-          statoDichiarato: bando.statoDichiarato,
-          statoPubblicazione: calcolaStatoPubblicazione(bando),
-        };
+      const daCreare: { bando: BandoNormalizzato; incentiviGovId: string | null; id: string }[] = [];
+      const daAggiornare: { bando: BandoNormalizzato; esistente: (typeof esistentiRows)[number] }[] = [];
 
+      for (const { bando, incentiviGovId } of validi) {
+        const esistente = incentiviGovId ? esistentiMap.get(incentiviGovId) : undefined;
         if (!esistente) {
-          const creata = await prisma.misura.create({
-            data: {
-              ...datiComuni,
-              categoria: "NAZIONALE",
-              incentiviGovId,
-              rilevataAutomaticamente: true,
-              fonteId: fonte.id,
-              externalId: incentiviGovId ?? hashCorpo(bando.titolo.valore! + bando.linkFonteUfficiale.valore),
-            },
-          });
-          await prisma.finestraTemporale.create({
-            data: {
-              misuraId: creata.id,
-              apreIl: bando.dataApertura.valore,
-              chiudeIl: bando.scadenzaStimata ? null : bando.dataScadenza.valore,
-              tipoChiusura: bando.scadenzaStimata ? "SCONOSCIUTO" : "DATA_FISSA",
-              corrente: true,
-            },
-          });
-          await scriviEvidence(creata.id, bando);
-          await prisma.eventoBando.create({
-            data: { misuraId: creata.id, tipo: "SCOPERTO", dettaglio: { fonteId: fonte.id, incentiviGovId } },
-          });
-          nuove += 1;
-          await ricalcolaMatchPerMisura(creata.id);
-        } else {
-          const fingerprintNuovo = fingerprintBando(bando);
-          const fingerprintEsistente = hashCorpo(
-            JSON.stringify({
-              titolo: esistente.titolo,
-              ente: esistente.ente,
-              dataApertura: esistente.dataApertura.getTime(),
-              dataScadenza: esistente.dataScadenza.getTime(),
-              tipoAgevolazione: esistente.tipoAgevolazione,
-              tipoValore: esistente.tipoValore,
-              importoFisso: esistente.importoFisso ? Number(esistente.importoFisso) : null,
-              importoMax: esistente.importoMax ? Number(esistente.importoMax) : null,
-              percentuale: esistente.percentuale ? Number(esistente.percentuale) : null,
-              tettoMassimo: esistente.tettoMassimo ? Number(esistente.tettoMassimo) : null,
-              atecoAmmessi: esistente.atecoAmmessi,
-              regioniAmmesse: esistente.regioniAmmesse,
-              linkFonteUfficiale: esistente.linkFonteUfficiale,
-            }),
-          );
+          daCreare.push({ bando, incentiviGovId, id: randomUUID() });
+          continue;
+        }
+        const fingerprintNuovo = fingerprintBando(bando);
+        const fingerprintEsistente = hashCorpo(
+          JSON.stringify({
+            titolo: esistente.titolo,
+            ente: esistente.ente,
+            dataApertura: esistente.dataApertura.getTime(),
+            dataScadenza: esistente.dataScadenza.getTime(),
+            tipoAgevolazione: esistente.tipoAgevolazione,
+            tipoValore: esistente.tipoValore,
+            importoFisso: esistente.importoFisso ? Number(esistente.importoFisso) : null,
+            importoMax: esistente.importoMax ? Number(esistente.importoMax) : null,
+            percentuale: esistente.percentuale ? Number(esistente.percentuale) : null,
+            tettoMassimo: esistente.tettoMassimo ? Number(esistente.tettoMassimo) : null,
+            atecoAmmessi: esistente.atecoAmmessi,
+            regioniAmmesse: esistente.regioniAmmesse,
+            linkFonteUfficiale: esistente.linkFonteUfficiale,
+          }),
+        );
+        // Invariato: nessuna riga toccata, nessun evidence/evento spurio.
+        if (fingerprintNuovo !== fingerprintEsistente) daAggiornare.push({ bando, esistente });
+      }
 
-          if (fingerprintNuovo !== fingerprintEsistente) {
-            const scadenzaProrogata =
-              bando.dataScadenza.valore && bando.dataScadenza.valore.getTime() > esistente.dataScadenza.getTime();
+      // --- Passata 3: creazioni in blocco ----------------------------------
+      // id pre-generato lato applicazione (randomUUID, non cuid — il campo
+      // è un semplice String @id, nessun vincolo di formato) apposta per
+      // poter usare createMany sulla Misura E sulle tabelle figlie
+      // (Finestra/Evidence/Evento) senza dover rileggere l'id da un create
+      // singolo — quel giro singolo-per-riga è esattamente ciò che rendeva
+      // lento tutto il resto.
+      for (const lotto of inLotti(daCreare, DIMENSIONE_LOTTO)) {
+        await prisma.misura.createMany({
+          data: lotto.map(({ bando, incentiviGovId, id }) => ({
+            id,
+            ...costruisciDatiComuni(bando),
+            categoria: "NAZIONALE" as const,
+            incentiviGovId,
+            rilevataAutomaticamente: true,
+            fonteId: fonte.id,
+            externalId: incentiviGovId ?? hashCorpo(bando.titolo.valore! + bando.linkFonteUfficiale.valore),
+          })),
+        });
 
-            await prisma.misura.update({ where: { id: esistente.id }, data: datiComuni });
-            await scriviEvidence(esistente.id, bando);
+        await prisma.finestraTemporale.createMany({
+          data: lotto.map(({ bando, id }) => ({
+            misuraId: id,
+            apreIl: bando.dataApertura.valore,
+            chiudeIl: bando.scadenzaStimata ? null : bando.dataScadenza.valore,
+            tipoChiusura: bando.scadenzaStimata ? ("SCONOSCIUTO" as const) : ("DATA_FISSA" as const),
+            corrente: true,
+          })),
+        });
+
+        const righeEvidence = lotto.flatMap(({ bando, id }) => costruisciRigheEvidence(id, bando));
+        if (righeEvidence.length > 0) await prisma.evidence.createMany({ data: righeEvidence });
+
+        await prisma.eventoBando.createMany({
+          data: lotto.map(({ id, incentiviGovId }) => ({
+            misuraId: id,
+            tipo: "SCOPERTO" as const,
+            dettaglio: { fonteId: fonte.id, incentiviGovId },
+          })),
+        });
+      }
+      nuove += daCreare.length;
+
+      // --- Passata 4: aggiornamenti, solo sulle righe DAVVERO cambiate -----
+      // Ancora individuali (nessun bulk-update con valori diversi per riga
+      // in Prisma) ma in parallelo a lotti, non uno alla volta in sequenza.
+      for (const lotto of inLotti(daAggiornare, CONCORRENZA_UPDATE)) {
+        await Promise.all(
+          lotto.map(async ({ bando, esistente }) => {
+            const scadenzaProrogata = bando.dataScadenza.valore && bando.dataScadenza.valore.getTime() > esistente.dataScadenza.getTime();
+            await prisma.misura.update({ where: { id: esistente.id }, data: costruisciDatiComuni(bando) });
+            const righeEvidence = costruisciRigheEvidence(esistente.id, bando);
+            if (righeEvidence.length > 0) await prisma.evidence.createMany({ data: righeEvidence });
             await prisma.eventoBando.create({
               data: {
                 misuraId: esistente.id,
@@ -294,11 +345,18 @@ export async function ingestFonte(fonteId: string, opts: { forza?: boolean } = {
                 },
               },
             });
-            aggiornate += 1;
-            await ricalcolaMatchPerMisura(esistente.id);
-          }
-        }
+          }),
+        );
       }
+      aggiornate += daAggiornare.length;
+    }
+
+    // Un solo ricalcolo globale dei match a fine ingest invece di uno per
+    // ogni misura creata/aggiornata (ricalcolaMatchPerMisura rifà da capo
+    // il fetch di TUTTI i prospect a ogni chiamata — moltiplicato per
+    // migliaia di misure era l'altra metà del problema di performance).
+    if (nuove > 0 || aggiornate > 0) {
+      await ricalcolaTuttiIMatch();
     }
 
     await prisma.fonte.update({

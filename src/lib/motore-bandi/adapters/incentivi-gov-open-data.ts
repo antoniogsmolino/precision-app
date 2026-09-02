@@ -57,6 +57,7 @@ const CAMPI = {
   linkIstituzionale: ["Link_istituzionale"],
   dimensioni: ["Dimensioni"],
   tipologiaSoggetto: ["Tipologia_Soggetto"],
+  dataUltimoAggiornamento: ["Data_ultimo_aggiornamento"],
 } as const;
 
 /**
@@ -203,7 +204,19 @@ function normalizzaRecord(record: Record<string, unknown>): BandoNormalizzato {
   // scartati dal validatore per questo). Se c'è una chiusura nota, usarla
   // anche come apertura stimata (stesso giorno, confidence bassa) è più
   // corretto di un fallback assoluto a "oggi".
-  const aperturaEffettiva = dataApertura ?? dataChiusura ?? new Date();
+  //
+  // Se MANCANO ENTRAMBE (9/5837 nell'export reale): l'ultima ancora, prima
+  // di "oggi", è Data_ultimo_aggiornamento — un valore stabile scritto
+  // dalla fonte stessa. `new Date()` qui sarebbe stato sbagliato per un
+  // motivo diverso e più subdolo dal caso sopra: non fallisce la
+  // validazione, ma essendo il "adesso" dell'esecuzione cambia a ogni
+  // scansione anche quando il record sorgente è identico — un secondo giro
+  // di ingest sullo stesso identico feed segnava questi record come
+  // "cambiati" (fingerprint diverso solo perché la data di fallback si
+  // sposta ogni volta), generando eventi AGGIORNATO spuri ogni giorno.
+  // Trovato ri-eseguendo l'ingest due volte sull'intero export reale.
+  const dataUltimoAggiornamento = parseDataOpenData(leggiCampoGrezzo(record, [...CAMPI.dataUltimoAggiornamento]));
+  const aperturaEffettiva = dataApertura ?? dataChiusura ?? dataUltimoAggiornamento ?? new Date(0);
   const scadenzaEffettiva = dataChiusura ?? new Date(aperturaEffettiva.getTime() + 180 * 24 * 60 * 60 * 1000);
 
   return {
