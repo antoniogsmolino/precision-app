@@ -1,30 +1,24 @@
 /**
  * Adapter Tier 0 — Incentivi.gov.it Open Data (specifica tecnica motore
- * bandi, §4). La fonte di discovery nazionale principale: JSON/CSV
- * ufficiale del catalogo, non HTML da interpretare — dati strutturati e
+ * bandi, §4). La fonte di discovery nazionale principale: JSON ufficiale
+ * del catalogo, non HTML da interpretare — dati strutturati e
  * deterministici, niente selettori fragili come nel vecchio motore
  * (src/lib/monitoring/parsers/incentivi-gov-it.ts, che invece raschia
  * l'HTML del portale e resta finché quella fonte non viene migrata qui).
  *
- * NOTA IMPORTANTE SULLA CAPITALIZZAZIONE DEI CAMPI: questo ambiente non ha
- * accesso alla rete pubblica, quindi non ho potuto scaricare un JSON reale
- * da incentivi.gov.it/it/open-data per leggere i nomi ESATTI delle chiavi.
- * I candidati sotto sono presi verbatim dall'elenco campi documentato nella
- * specifica (§4) più le varianti più comuni per dataset PA (CKAN/Socrata:
- * spesso snake_case minuscolo). `leggiCampoGrezzo` (in ./tipi.ts) prova le
- * chiavi esatte e poi un confronto case/underscore-insensitive, quindi
- * regge piccole differenze di capitalizzazione — ma se la struttura reale
- * è sensibilmente diversa (es. nomi in inglese, nesting diverso) va
- * verificato e corretto qui al primo run reale, come già successo per i
- * selettori HTML di Invitalia/MIMIT in questa stessa sessione.
- *
- * URL della risorsa NON hardcodato qui (specifica, §103: "gli endpoint
- * devono risiedere nel Source Registry, non nel codice applicativo") —
- * viene letto da Fonte.url, configurabile dal team senza un nuovo deploy.
+ * MAPPATURA CAMPI VERIFICATA su un export reale di 5.837 record fornito
+ * dal team (02/09/2026) — non più un best-effort sui nomi documentati
+ * nella specifica: i campi elencati sotto sono quelli VERI del JSON
+ * ufficiale (leggermente diversi dai nomi della specifica — es. l'importo
+ * non è testo libero "Costi_Ammessi"/"agevolazione concedibile" ma quattro
+ * campi numerici puliti *_min/*_max). URL della risorsa NON hardcodato
+ * qui (specifica, §103): letto da Fonte.url, configurabile dal team senza
+ * un nuovo deploy — al momento non ancora noto in modo automatizzato
+ * (nessun accesso di rete da questo ambiente), da impostare non appena
+ * disponibile il link diretto al file JSON.
  */
 import { createHash } from "node:crypto";
 import type { TipoAgevolazione, TipoValoreMisura } from "@prisma/client";
-import { parseImportoEuro, parsePercentuale } from "../../monitoring/parsers/shared";
 import { campo, leggiCampoGrezzo, type BandoNormalizzato, type EsitoHealthCheck, type ItemGrezzo, type RisorsaScoperta, type SourceAdapter } from "./tipi";
 
 const TIMEOUT_FETCH_MS = 30_000;
@@ -33,26 +27,51 @@ const HEADERS_FETCH = {
   Accept: "application/json, text/csv;q=0.9, */*;q=0.5",
 };
 
-const CANDIDATI_CAMPO = {
-  id: ["ID_Incentivo", "id_incentivo", "id"],
-  titolo: ["Titolo", "titolo", "title"],
-  descrizione: ["Descrizione", "descrizione", "description"],
-  obiettivo: ["Obiettivo_Finalita", "obiettivo_finalita", "obiettivo"],
-  dataApertura: ["Data_apertura", "data_apertura", "DataApertura"],
-  dataChiusura: ["Data_chiusura", "data_chiusura", "DataChiusura"],
-  noteAperturaChiusura: ["Note_di_apertura_chiusura", "note_di_apertura_chiusura"],
-  formaAgevolazione: ["Forma_agevolazione", "forma_agevolazione"],
-  costiAmmessi: ["Costi_Ammessi", "costi_ammessi"],
-  spesaAmmessa: ["Spesa_ammessa", "spesa_ammessa", "Spesa_ammessa_massima"],
-  agevolazioneConcedibile: ["Agevolazione_concedibile", "agevolazione_concedibile"],
-  settoreAttivita: ["Settore_Attivita", "settore_attivita"],
-  codiciAteco: ["Codici_ATECO", "codici_ateco", "ATECO"],
-  regioni: ["Regioni", "regioni"],
-  soggettoConcedente: ["Soggetto_Concedente", "soggetto_concedente", "Ente"],
-  linkIstituzionale: ["Link_istituzionale", "link_istituzionale", "url"],
-  altreCaratteristiche: ["Altre_caratteristiche", "altre_caratteristiche"],
-  dataUltimoAggiornamento: ["Data_ultimo_aggiornamento", "data_ultimo_aggiornamento"],
+/** Nomi di campo esatti confermati sull'export reale — vedi nota in cima al file. */
+const CAMPI = {
+  id: ["ID_Incentivo"],
+  titolo: ["Titolo"],
+  descrizione: ["Descrizione"],
+  obiettivo: ["Obiettivo_Finalita"],
+  dataApertura: ["Data_apertura"],
+  dataChiusura: ["Data_chiusura"],
+  formaAgevolazione: ["Forma_agevolazione"],
+  spesaAmmessaMin: ["Spesa_Ammessa_min"],
+  spesaAmmessaMax: ["Spesa_Ammessa_max"],
+  agevolazioneMin: ["Agevolazione_Concedibile_min"],
+  agevolazioneMax: ["Agevolazione_Concedibile_max"],
+  settoreAttivita: ["Settore_Attivita"],
+  codiciAteco: ["Codici_ATECO"],
+  regioni: ["Regioni"],
+  soggettoConcedente: ["Soggetto_Concedente"],
+  baseNormativa: ["Base_normativa_primaria"],
+  provvedimentoAttuativo: ["Provvedimento_attuativo"],
+  linkIstituzionale: ["Link_istituzionale"],
+  dimensioni: ["Dimensioni"],
+  tipologiaSoggetto: ["Tipologia_Soggetto"],
 } as const;
+
+/**
+ * Vocabolario di Forma_agevolazione CHIUSO e verificato sull'intero export
+ * reale (6 valori, nessun altro osservato su 5.837 record). Confidence
+ * alta perché è un confronto esatto contro valori confermati, non un
+ * indovinello su testo libero — un valore non riconosciuto (portale che
+ * introduce una nuova categoria) ricade su MISTO con confidence bassa
+ * invece di un match sbagliato silenzioso.
+ */
+const VOCABOLARIO_FORMA_AGEVOLAZIONE: Record<string, TipoAgevolazione> = {
+  "contributo/fondo perduto": "FONDO_PERDUTO",
+  "agevolazione fiscale": "CREDITO_IMPOSTA",
+  // Le tre forme sotto (prestito rimborsabile, capitale di rischio,
+  // garanzia, riduzione contributi previdenziali) non hanno una categoria
+  // dedicata nell'enum interno (4 valori) — MISTO è la scelta onesta,
+  // preferibile a forzarle dentro TASSO_ZERO/CREDITO_IMPOSTA solo perché
+  // sono le uniche altre opzioni disponibili.
+  "prestito/anticipo rimborsabile": "MISTO",
+  "capitale di rischio": "MISTO",
+  "interventi a garanzia": "MISTO",
+  "riduzione dei contributi di previdenza sociale": "MISTO",
+};
 
 function testo(v: unknown): string | undefined {
   if (v === undefined || v === null) return undefined;
@@ -60,23 +79,35 @@ function testo(v: unknown): string | undefined {
   return s.length > 0 ? s : undefined;
 }
 
+/** Le liste della fonte reale sono array JSON, non stringhe delimitate — Array.isArray è il percorso vero, il resto è un fallback difensivo. */
 function elenco(v: unknown): string[] {
   if (v === undefined || v === null) return [];
   if (Array.isArray(v)) return v.map(String).map((s) => s.trim()).filter(Boolean);
   const s = String(v).trim();
   if (!s) return [];
-  return s
-    .split(/[,;]/)
-    .map((x) => x.trim())
-    .filter(Boolean);
+  return s.split(/[,;]/).map((x) => x.trim()).filter(Boolean);
 }
 
-/** Parsa una data in formato ISO (YYYY-MM-DD[THH:mm:ss]) — atteso per un dataset strutturato — con fallback dd/mm/yyyy per sicurezza. */
+function testoElenco(v: unknown): string | undefined {
+  const l = elenco(v);
+  return l.length > 0 ? l.join(", ") : undefined;
+}
+
+/** Numero pulito dai 4 campi economici (confermato sempre numerico o assente su tutto l'export reale, mai testo libero). */
+function numero(v: unknown): number | null {
+  const s = testo(v);
+  if (s === undefined) return null;
+  const n = Number(s.replace(",", "."));
+  return Number.isFinite(n) ? n : null;
+}
+
 function parseDataOpenData(v: unknown): Date | null {
   const s = testo(v);
   if (!s) return null;
-  const iso = new Date(s);
-  if (!Number.isNaN(iso.getTime()) && /^\d{4}-\d{2}-\d{2}/.test(s)) return iso;
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+    const d = new Date(s);
+    if (!Number.isNaN(d.getTime())) return d;
+  }
   const italiana = s.match(/(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{4})/);
   if (italiana) {
     const [, gg, mm, aaaa] = italiana;
@@ -86,62 +117,85 @@ function parseDataOpenData(v: unknown): Date | null {
   return null;
 }
 
-/** Mappa il testo libero "Forma_agevolazione" sull'enum interno (4 valori) — un vocabolario più ricco richiederebbe di estendere TipoAgevolazione, deliberatamente rimandato: qui l'obiettivo è non buttare via il record se il testo non combacia esattamente. */
-function mappaFormaAgevolazione(testoLibero: string | undefined): TipoAgevolazione {
-  const t = (testoLibero ?? "").toLowerCase();
-  if (/tasso\s*zero|tasso\s*agevolat/.test(t)) return "TASSO_ZERO";
-  if (/credito\s*d'?imposta/.test(t)) return "CREDITO_IMPOSTA";
-  if (/fondo\s*perduto|contributo\s*a\s*fondo|contributo\s*in\s*conto\s*capitale/.test(t)) return "FONDO_PERDUTO";
-  return "MISTO";
+function mappaFormaAgevolazione(valori: string[]): { tipo: TipoAgevolazione; confidence: number; estratto?: string } {
+  const primo = valori[0];
+  if (!primo) return { tipo: "MISTO", confidence: 0 };
+  const mappato = VOCABOLARIO_FORMA_AGEVOLAZIONE[primo.toLowerCase().trim()];
+  return mappato
+    ? { tipo: mappato, confidence: 0.95, estratto: primo }
+    : { tipo: "MISTO", confidence: 0.4, estratto: primo }; // valore non nel vocabolario noto: non inventare una categoria specifica
 }
 
-function mappaTipoValore(percentuale: number | null, importoFisso: number | null): TipoValoreMisura {
-  if (percentuale !== null) return "PERCENTUALE";
-  if (importoFisso !== null) return "IMPORTO_FISSO";
-  return "RANGE";
+/** "Tutti i settori economici..." non è un codice ATECO — nessuna restrizione, non un elenco con un elemento fasullo. */
+function normalizzaAteco(testoGrezzo: string | undefined): string[] {
+  if (!testoGrezzo) return [];
+  if (/tutti\s+i\s+(settori|codici)/i.test(testoGrezzo)) return [];
+  return testoGrezzo
+    .split(/[;,]/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0 && /^\d/.test(s)); // scarta eventuali frammenti di testo libero residui, tiene solo ciò che inizia con un codice numerico
 }
 
 function normalizzaRecord(record: Record<string, unknown>): BandoNormalizzato {
-  const idIncentivo = testo(leggiCampoGrezzo(record, [...CANDIDATI_CAMPO.id]));
-  const titoloTesto = testo(leggiCampoGrezzo(record, [...CANDIDATI_CAMPO.titolo])) ?? "(titolo non disponibile)";
-  const descrizioneTesto = testo(leggiCampoGrezzo(record, [...CANDIDATI_CAMPO.descrizione]));
-  const obiettivoTesto = testo(leggiCampoGrezzo(record, [...CANDIDATI_CAMPO.obiettivo]));
-  const noteAperturaChiusura = testo(leggiCampoGrezzo(record, [...CANDIDATI_CAMPO.noteAperturaChiusura]));
-  const linkIstituzionale = testo(leggiCampoGrezzo(record, [...CANDIDATI_CAMPO.linkIstituzionale]));
-  const soggettoConcedente = testo(leggiCampoGrezzo(record, [...CANDIDATI_CAMPO.soggettoConcedente])) ?? "Ente non specificato";
-  const altreCaratteristiche = testo(leggiCampoGrezzo(record, [...CANDIDATI_CAMPO.altreCaratteristiche]));
+  const idIncentivo = testo(leggiCampoGrezzo(record, [...CAMPI.id]));
+  const titoloTesto = testo(leggiCampoGrezzo(record, [...CAMPI.titolo])) ?? "(titolo non disponibile)";
+  const descrizioneTesto = testo(leggiCampoGrezzo(record, [...CAMPI.descrizione]));
+  const obiettivoTesto = testoElenco(leggiCampoGrezzo(record, [...CAMPI.obiettivo]));
+  const linkIstituzionale = testo(leggiCampoGrezzo(record, [...CAMPI.linkIstituzionale]));
+  const soggettoConcedente = testo(leggiCampoGrezzo(record, [...CAMPI.soggettoConcedente])) ?? "Ente non specificato";
+  const baseNormativa = testo(leggiCampoGrezzo(record, [...CAMPI.baseNormativa]));
+  const provvedimento = testo(leggiCampoGrezzo(record, [...CAMPI.provvedimentoAttuativo]));
+  const dimensioniTesto = testoElenco(leggiCampoGrezzo(record, [...CAMPI.dimensioni]));
+  const tipologiaSoggettoTesto = testoElenco(leggiCampoGrezzo(record, [...CAMPI.tipologiaSoggetto]));
 
-  const dataAperturaGrezza = leggiCampoGrezzo(record, [...CANDIDATI_CAMPO.dataApertura]);
-  const dataChiusuraGrezza = leggiCampoGrezzo(record, [...CANDIDATI_CAMPO.dataChiusura]);
+  const dataAperturaGrezza = leggiCampoGrezzo(record, [...CAMPI.dataApertura]);
+  const dataChiusuraGrezza = leggiCampoGrezzo(record, [...CAMPI.dataChiusura]);
   const dataApertura = parseDataOpenData(dataAperturaGrezza);
   const dataChiusura = parseDataOpenData(dataChiusuraGrezza);
 
-  // Campi economici: nella specifica sono descritti come testo libero
-  // ("Costi_Ammessi", "agevolazione concedibile"...), non numeri puliti —
-  // qui si tenta l'estrazione con gli stessi parser euro/percentuale già
-  // verificati nel motore esistente. Se il testo non contiene un numero
-  // riconoscibile il campo resta null con confidence 0 (mai indovinato).
-  const spesaAmmessaTesto = testo(leggiCampoGrezzo(record, [...CANDIDATI_CAMPO.spesaAmmessa, ...CANDIDATI_CAMPO.costiAmmessi]));
-  const agevolazioneTesto = testo(leggiCampoGrezzo(record, [...CANDIDATI_CAMPO.agevolazioneConcedibile]));
-  const percentuale = agevolazioneTesto ? parsePercentuale(agevolazioneTesto) : null;
-  const tettoMassimo = agevolazioneTesto ? parseImportoEuro(agevolazioneTesto) : null;
-  const importoMax = spesaAmmessaTesto ? parseImportoEuro(spesaAmmessaTesto) : null;
-  const importoFisso = percentuale === null && tettoMassimo === null ? importoMax : null;
+  const spesaMin = numero(leggiCampoGrezzo(record, [...CAMPI.spesaAmmessaMin]));
+  const spesaMax = numero(leggiCampoGrezzo(record, [...CAMPI.spesaAmmessaMax]));
+  const agevolazioneMin = numero(leggiCampoGrezzo(record, [...CAMPI.agevolazioneMin]));
+  const agevolazioneMax = numero(leggiCampoGrezzo(record, [...CAMPI.agevolazioneMax]));
 
-  const ateco = elenco(leggiCampoGrezzo(record, [...CANDIDATI_CAMPO.codiciAteco]));
-  const regioni = elenco(leggiCampoGrezzo(record, [...CANDIDATI_CAMPO.regioni])).filter(
-    (r) => !/tutte\s*le\s*regioni|nazionale|italia/i.test(r),
-  );
+  // Il dataset non fornisce una percentuale esplicita di intensità di
+  // aiuto — solo importi min/max. Rappresentare il valore come RANGE
+  // sull'agevolazione concedibile (o importo fisso se min==max) è più
+  // fedele alla fonte che inventare una percentuale derivata (specifica,
+  // §23: "mai derivare automaticamente grant_max da una percentuale se il
+  // bando non lo permette esplicitamente" — vale anche al contrario).
+  const agevolazioneEffettiva = agevolazioneMax ?? spesaMax;
+  const agevolazioneMinEffettiva = agevolazioneMin ?? spesaMin;
+  const importoFisso = agevolazioneEffettiva !== null && agevolazioneMinEffettiva === agevolazioneEffettiva ? agevolazioneEffettiva : null;
+  const tipoValore: TipoValoreMisura = importoFisso !== null ? "IMPORTO_FISSO" : agevolazioneEffettiva !== null ? "RANGE" : "RANGE";
 
-  const descrizioneEstesaTesto = [descrizioneTesto, obiettivoTesto, altreCaratteristiche].filter(Boolean).join("\n\n") || titoloTesto;
+  const ateco = normalizzaAteco(testo(leggiCampoGrezzo(record, [...CAMPI.codiciAteco])));
+  const regioni = elenco(leggiCampoGrezzo(record, [...CAMPI.regioni]));
 
-  // scadenzaStimata: true quando manca una data di chiusura affidabile —
-  // la dashboard esistente la mostra come "da verificare" e la esclude
-  // dagli alert di scadenza imminente (comportamento già in produzione,
-  // src/lib/misure/stato.ts). Fallback a +180 giorni dall'apertura (o da
-  // oggi) quando anche l'apertura manca, stesso pattern del vecchio motore.
+  const forma = mappaFormaAgevolazione(elenco(leggiCampoGrezzo(record, [...CAMPI.formaAgevolazione])));
+
+  const descrizioneEstesaTesto =
+    [
+      descrizioneTesto,
+      obiettivoTesto ? `Finalità: ${obiettivoTesto}` : undefined,
+      dimensioniTesto ? `Dimensioni ammesse: ${dimensioniTesto}` : undefined,
+      tipologiaSoggettoTesto ? `Tipologia soggetto: ${tipologiaSoggettoTesto}` : undefined,
+      baseNormativa ? `Base normativa: ${baseNormativa}` : undefined,
+      provvedimento && provvedimento !== baseNormativa ? `Provvedimento attuativo: ${provvedimento}` : undefined,
+    ]
+      .filter(Boolean)
+      .join("\n\n") || titoloTesto;
+
   const scadenzaStimata = dataChiusura === null;
-  const aperturaEffettiva = dataApertura ?? new Date();
+  // Fallback quando manca Data_apertura: MAI "oggi" come unico default —
+  // per un bando storico già chiuso (Data_chiusura nel passato) "oggi"
+  // sarebbe successivo alla chiusura, violando apertura<=scadenza per un
+  // motivo che non ha niente a che fare con i dati reali (trovato sull'export
+  // reale: 8/5837 record con Data_apertura assente e Data_chiusura passata,
+  // scartati dal validatore per questo). Se c'è una chiusura nota, usarla
+  // anche come apertura stimata (stesso giorno, confidence bassa) è più
+  // corretto di un fallback assoluto a "oggi".
+  const aperturaEffettiva = dataApertura ?? dataChiusura ?? new Date();
   const scadenzaEffettiva = dataChiusura ?? new Date(aperturaEffettiva.getTime() + 180 * 24 * 60 * 60 * 1000);
 
   return {
@@ -150,36 +204,23 @@ function normalizzaRecord(record: Record<string, unknown>): BandoNormalizzato {
     ente: campo(soggettoConcedente, { estrattoTesto: soggettoConcedente }),
     descrizioneBreve: campo(descrizioneTesto ?? titoloTesto, { estrattoTesto: descrizioneTesto }),
     descrizioneEstesa: campo(descrizioneEstesaTesto, { estrattoTesto: descrizioneEstesaTesto }),
-    dataApertura: campo(aperturaEffettiva, {
-      confidence: dataApertura ? 1 : 0.3,
-      estrattoTesto: testo(dataAperturaGrezza),
-    }),
-    dataScadenza: campo(scadenzaEffettiva, {
-      confidence: dataChiusura ? 1 : 0.3,
-      estrattoTesto: testo(dataChiusuraGrezza) ?? noteAperturaChiusura,
-    }),
+    dataApertura: campo(aperturaEffettiva, { confidence: dataApertura ? 1 : 0.3, estrattoTesto: testo(dataAperturaGrezza) }),
+    dataScadenza: campo(scadenzaEffettiva, { confidence: dataChiusura ? 1 : 0.3, estrattoTesto: testo(dataChiusuraGrezza) }),
     scadenzaStimata,
-    tipoAgevolazione: campo(mappaFormaAgevolazione(testo(leggiCampoGrezzo(record, [...CANDIDATI_CAMPO.formaAgevolazione]))), {
-      confidence: 0.7,
-      estrattoTesto: testo(leggiCampoGrezzo(record, [...CANDIDATI_CAMPO.formaAgevolazione])),
-    }),
-    tipoValore: campo(mappaTipoValore(percentuale, importoFisso), { confidence: 0.7 }),
-    importoFisso: campo(importoFisso, { metodoEstrazione: "DERIVATO", confidence: importoFisso ? 0.6 : 0, estrattoTesto: spesaAmmessaTesto }),
-    importoMin: campo<number>(null),
-    importoMax: campo(importoMax, { confidence: importoMax ? 0.6 : 0, estrattoTesto: spesaAmmessaTesto }),
-    percentuale: campo(percentuale, { confidence: percentuale ? 0.6 : 0, estrattoTesto: agevolazioneTesto }),
-    tettoMassimo: campo(tettoMassimo, { confidence: tettoMassimo ? 0.6 : 0, estrattoTesto: agevolazioneTesto }),
-    atecoAmmessi: campo(ateco, { confidence: ateco.length ? 0.8 : 0 }),
-    regioniAmmesse: campo(regioni, { confidence: 0.8 }),
-    linkFonteUfficiale: campo(linkIstituzionale ?? "https://www.incentivi.gov.it/it/open-data", {
-      confidence: linkIstituzionale ? 1 : 0.2,
-    }),
-    // Deliberatamente null: la specifica (§28) avverte esplicitamente di
-    // non dedurre stati come FUNDS_EXHAUSTED/PAUSED/CANCELLED da segnali
-    // deboli. Senza un campo esplicito e affidabile per lo stato
-    // dichiarato in questo dataset, meglio nessuno stato che uno inventato
-    // — lo stato mostrato in dashboard resta comunque quello calcolato
-    // dalle date da src/lib/misure/stato.ts.
+    tipoAgevolazione: campo(forma.tipo, { confidence: forma.confidence, estrattoTesto: forma.estratto }),
+    tipoValore: campo(tipoValore, { confidence: agevolazioneEffettiva !== null ? 0.9 : 0.3 }),
+    importoFisso: campo(importoFisso, { confidence: importoFisso !== null ? 0.95 : 0 }),
+    importoMin: campo(importoFisso === null ? agevolazioneMinEffettiva : null, { confidence: importoFisso === null && agevolazioneMinEffettiva !== null ? 0.95 : 0 }),
+    importoMax: campo(importoFisso === null ? agevolazioneEffettiva : null, { confidence: importoFisso === null && agevolazioneEffettiva !== null ? 0.95 : 0 }),
+    percentuale: campo<number>(null), // non fornita dalla fonte — onestamente assente, non derivata
+    tettoMassimo: campo(agevolazioneEffettiva, { confidence: agevolazioneEffettiva !== null ? 0.95 : 0 }),
+    atecoAmmessi: campo(ateco, { confidence: ateco.length ? 0.9 : 0 }),
+    regioniAmmesse: campo(regioni, { confidence: regioni.length ? 0.95 : 0 }),
+    linkFonteUfficiale: campo(linkIstituzionale ?? "https://www.incentivi.gov.it/it/open-data", { confidence: linkIstituzionale ? 1 : 0.2 }),
+    // Deliberatamente null: la specifica (§28) avverte di non dedurre
+    // stati come FUNDS_EXHAUSTED/PAUSED/CANCELLED da segnali deboli. Il
+    // dataset non ha un campo di stato esplicito — lo stato mostrato in
+    // dashboard resta quello calcolato dalle date da src/lib/misure/stato.ts.
     statoDichiarato: null,
   };
 }
@@ -192,10 +233,7 @@ export const adapterIncentiviGovOpenData: SourceAdapter = {
   },
 
   async fetch(item: RisorsaScoperta): Promise<ItemGrezzo> {
-    const res = await fetch(item.urlRisorsa, {
-      headers: HEADERS_FETCH,
-      signal: AbortSignal.timeout(TIMEOUT_FETCH_MS),
-    });
+    const res = await fetch(item.urlRisorsa, { headers: HEADERS_FETCH, signal: AbortSignal.timeout(TIMEOUT_FETCH_MS) });
     const corpo = await res.text();
     return {
       urlRisorsa: item.urlRisorsa,
@@ -212,10 +250,9 @@ export const adapterIncentiviGovOpenData: SourceAdapter = {
       record = JSON.parse(raw.corpo);
     } catch {
       // Non è JSON valido: probabilmente CSV, o un errore HTTP servito come
-      // pagina HTML. Il CSV come formato di fallback (specifica, §4: "usare
-      // CSV come fallback e confronto") non è ancora implementato in questo
-      // adapter — primo obiettivo è il percorso JSON, il più comune per
-      // dataset Open Data italiani. Nessun bando prodotto, mai un crash.
+      // pagina HTML. Il CSV come formato di fallback (specifica, §4) non è
+      // ancora implementato in questo adapter. Nessun bando prodotto, mai
+      // un crash.
       return [];
     }
 
