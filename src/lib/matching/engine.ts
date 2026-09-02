@@ -157,6 +157,10 @@ export function valutaMatch(azienda: DatiAziendaPerMatching, misura: RequisitiMi
   return { isMatch: !fallito, criteri };
 }
 
+function arrayUguale(a: string[], b: string[]): boolean {
+  return a.length === b.length && a.every((v, i) => v === b[i]);
+}
+
 /**
  * Aggiorna l'elenco dei match validi verso una lista di prospect/misura,
  * senza mai cancellare-e-ricreare: gli `statoPratica` che il team ha già
@@ -164,30 +168,63 @@ export function valutaMatch(azienda: DatiAziendaPerMatching, misura: RequisitiMi
  * umano e vanno preservati ad ogni ricalcolo — solo i match che non sono
  * più validi vengono rimossi, quelli che restano validi vengono aggiornati
  * (criteriEsito) senza toccare lo stato pratica, e i nuovi vengono creati
- * con lo stato di default (CANDIDATA).
+ * con lo stato di default (CANDIDATA). `filtroStale` vuoto ({}) significa
+ * "ricalcolo globale": lo stale-set è tutto ciò che non è più valido su
+ * tutta la tabella (usato da ricalcolaTuttiIMatch).
+ *
+ * NIENTE `$transaction` interattiva che avvolge un ciclo di upsert (era
+ * così prima): con molte coppie — es. un ricalcolo globale su migliaia di
+ * misure reali, come il primo seed dopo l'introduzione del motore bandi —
+ * il tempo totale supera il timeout di default di Prisma per le
+ * transazioni interattive (5s), e dietro un connection pooler in
+ * produzione la transazione risultava chiusa a metà:
+ * "Transaction API error: Transaction not found" (P2028), visto per la
+ * prima volta proprio durante quel seed. Ogni passo sotto è già atomico
+ * per conto suo (deleteMany singola query, createMany in batch, update
+ * solo sulle righe DAVVERO cambiate) — un'interruzione a metà lascia
+ * comunque dati coerenti, e il prossimo ricalcolo (idempotente) completa
+ * quanto mancava.
  */
 async function sincronizzaMatch(
   coppieValide: { prospectId: string; misuraId: string; criteriEsito: string[] }[],
-  filtroStale: { prospectId: string } | { misuraId: string },
+  filtroStale: Record<string, unknown> = {},
 ) {
-  await prisma.$transaction(async (tx) => {
-    await tx.prospectMisuraMatch.deleteMany({
-      where: {
-        ...filtroStale,
-        NOT: {
-          OR: coppieValide.map(({ prospectId, misuraId }) => ({ prospectId, misuraId })),
-        },
-      },
-    });
-
-    for (const { prospectId, misuraId, criteriEsito } of coppieValide) {
-      await tx.prospectMisuraMatch.upsert({
-        where: { prospectId_misuraId: { prospectId, misuraId } },
-        update: { criteriEsito },
-        create: { prospectId, misuraId, criteriEsito },
-      });
-    }
+  await prisma.prospectMisuraMatch.deleteMany({
+    where: {
+      ...filtroStale,
+      NOT: { OR: coppieValide.map(({ prospectId, misuraId }) => ({ prospectId, misuraId })) },
+    },
   });
+
+  if (coppieValide.length === 0) return;
+
+  const esistenti = await prisma.prospectMisuraMatch.findMany({
+    where: { OR: coppieValide.map(({ prospectId, misuraId }) => ({ prospectId, misuraId })) },
+    select: { prospectId: true, misuraId: true, criteriEsito: true },
+  });
+  const esistentiMap = new Map(esistenti.map((e) => [`${e.prospectId}::${e.misuraId}`, e.criteriEsito]));
+
+  const daCreare = coppieValide.filter((c) => !esistentiMap.has(`${c.prospectId}::${c.misuraId}`));
+  const daAggiornare = coppieValide.filter((c) => {
+    const attuale = esistentiMap.get(`${c.prospectId}::${c.misuraId}`);
+    return attuale !== undefined && !arrayUguale(attuale, c.criteriEsito);
+  });
+
+  if (daCreare.length > 0) {
+    await prisma.prospectMisuraMatch.createMany({
+      data: daCreare.map(({ prospectId, misuraId, criteriEsito }) => ({ prospectId, misuraId, criteriEsito })),
+      skipDuplicates: true, // difesa in profondità: due chiamate concorrenti non devono mai far esplodere il vincolo unique prospectId+misuraId
+    });
+  }
+
+  await Promise.all(
+    daAggiornare.map(({ prospectId, misuraId, criteriEsito }) =>
+      prisma.prospectMisuraMatch.update({
+        where: { prospectId_misuraId: { prospectId, misuraId } },
+        data: { criteriEsito },
+      }),
+    ),
+  );
 }
 
 /** Ricalcola tutti i match di un singolo prospect contro tutte le misure aperte. */
@@ -234,22 +271,9 @@ export async function ricalcolaTuttiIMatch() {
   }
 
   // Nessun filtro "stale" ristretto: qui si ricalcola l'intera base dati,
-  // quindi lo stale-set è semplicemente "tutto ciò che non è più valido".
-  await prisma.$transaction(async (tx) => {
-    const esistenti = await tx.prospectMisuraMatch.findMany({ select: { id: true, prospectId: true, misuraId: true } });
-    const validiSet = new Set(coppieValide.map((c) => `${c.prospectId}::${c.misuraId}`));
-    const daRimuovere = esistenti.filter((e) => !validiSet.has(`${e.prospectId}::${e.misuraId}`)).map((e) => e.id);
-    if (daRimuovere.length > 0) {
-      await tx.prospectMisuraMatch.deleteMany({ where: { id: { in: daRimuovere } } });
-    }
-    for (const { prospectId, misuraId, criteriEsito } of coppieValide) {
-      await tx.prospectMisuraMatch.upsert({
-        where: { prospectId_misuraId: { prospectId, misuraId } },
-        update: { criteriEsito },
-        create: { prospectId, misuraId, criteriEsito },
-      });
-    }
-  });
+  // quindi lo stale-set è semplicemente "tutto ciò che non è più valido"
+  // (sincronizzaMatch con filtroStale={} lo interpreta correttamente).
+  await sincronizzaMatch(coppieValide, {});
 
   return { prospectValutati: prospects.length, misureValutate: misure.length, matchTrovati: coppieValide.length };
 }
