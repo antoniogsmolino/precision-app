@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { risolviAdapter } from "./adapters/registry";
-import { validaBandoNormalizzato } from "./validazione";
+import { validaBandoNormalizzato, calcolaStatoPubblicazione } from "./validazione";
 import type { BandoNormalizzato, CampoConEvidenza } from "./adapters/tipi";
 import { ricalcolaMatchPerMisura } from "@/lib/matching/engine";
 import type { Fonte } from "@prisma/client";
@@ -192,6 +192,7 @@ export async function ingestFonte(fonteId: string, opts: { forza?: boolean } = {
           regioniAmmesse: bando.regioniAmmesse.valore ?? [],
           linkFonteUfficiale: bando.linkFonteUfficiale.valore!,
           statoDichiarato: bando.statoDichiarato,
+          statoPubblicazione: calcolaStatoPubblicazione(bando),
         };
 
         if (!esistente) {

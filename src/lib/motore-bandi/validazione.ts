@@ -1,4 +1,5 @@
-import type { BandoNormalizzato } from "./adapters/tipi";
+import type { StatoPubblicazioneMisura } from "@prisma/client";
+import type { BandoNormalizzato, CampoConEvidenza } from "./adapters/tipi";
 
 /**
  * Validazioni deterministiche (specifica tecnica motore bandi, §28) — MAI
@@ -48,4 +49,41 @@ export function validaBandoNormalizzato(bando: BandoNormalizzato): EsitoValidazi
   }
 
   return { valido: errori.length === 0, errori };
+}
+
+/** Soglia minima di confidence sui campi critici per considerare un bando "verificato" (specifica, §29). */
+const SOGLIA_CONFIDENCE_VERIFICATA = 0.9;
+
+/**
+ * Regole di pubblicazione (specifica, §29/§52): un bando entra
+ * AUTO_VERIFICATA solo se tutti i campi critici PRESENTI hanno confidence
+ * alta — un campo assente (valore null, "non trovato") non abbassa la
+ * confidence, un campo presente ma incerto sì. Mai promuovere a PUBBLICATA
+ * da qui: quello stato è riservato all'intervento umano/al vecchio motore
+ * (che non calcola confidence per campo) — il nuovo motore propone al
+ * massimo AUTO_VERIFICATA o segnala DA_VERIFICARE.
+ */
+export function calcolaStatoPubblicazione(bando: BandoNormalizzato): StatoPubblicazioneMisura {
+  const campiCritici: CampoConEvidenza<unknown>[] = [
+    bando.dataApertura,
+    bando.dataScadenza,
+    bando.tipoAgevolazione,
+    bando.importoFisso,
+    bando.importoMax,
+    bando.percentuale,
+    bando.tettoMassimo,
+    bando.atecoAmmessi,
+    bando.regioniAmmesse,
+  ];
+
+  const presenti = campiCritici.filter((c) => {
+    if (c.valore === null || c.valore === undefined) return false;
+    if (Array.isArray(c.valore)) return c.valore.length > 0;
+    return true;
+  });
+
+  if (presenti.length === 0) return "DA_VERIFICARE";
+
+  const confidenceMinima = Math.min(...presenti.map((c) => c.confidence));
+  return confidenceMinima >= SOGLIA_CONFIDENCE_VERIFICATA ? "AUTO_VERIFICATA" : "DA_VERIFICARE";
 }

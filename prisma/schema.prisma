@@ -178,6 +178,21 @@ enum StatoDichiaratoBando {
   REOPENED
 }
 
+// Regole di pubblicazione (specifica motore bandi, §52): un record del
+// nuovo motore non entra "confermato" solo perché è stato letto da una
+// fonte — la confidence sui campi critici decide se può dirsi verificato
+// o se va segnalato per revisione. DEFAULT PUBBLICATA: le misure inserite
+// a mano dal team e quelle del vecchio motore (che non calcola confidence
+// per campo) restano visibili esattamente come oggi — questo stato è
+// significativo solo per le misure scritte dal nuovo motore bandi.
+enum StatoPubblicazioneMisura {
+  DRAFT
+  AUTO_VERIFICATA
+  DA_VERIFICARE
+  PUBBLICATA
+  ARCHIVIATA
+}
+
 model Misura {
   id                String          @id @default(cuid())
   titolo            String
@@ -208,6 +223,9 @@ model Misura {
   // sull'enum. Nullo per le misure inserite manualmente o rilevate dal
   // vecchio motore, che non lo popolano.
   statoDichiarato StatoDichiaratoBando?
+
+  // Vedi commento sull'enum StatoPubblicazioneMisura sopra.
+  statoPubblicazione StatoPubblicazioneMisura @default(PUBBLICATA)
 
   tipoAgevolazione TipoAgevolazione
   tipoValore       TipoValoreMisura
