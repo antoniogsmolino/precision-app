@@ -3,36 +3,34 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { pivaFormalmenteValida, recuperaDatiAzienda } from "@/lib/integrations/openapi-business";
 import { ricalcolaMatchPerProspect } from "@/lib/matching/engine";
-import { formatValoreMisura } from "@/lib/misure/valore";
-import { inviaEmailMatch } from "@/lib/email/match-email";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Endpoint pubblico (NON dietro login — vedi middleware.ts) del frontend
- * "Finanza Agevolata Match" (Fase 3): dato piva+email di un'azienda,
- * risolve l'anagrafica via openapi.it, la salva/aggiorna come Prospect
- * (così il lead entra anche nel CRM interno, taggato `fonteImport`),
- * ricalcola i match con lo stesso motore a regole della dashboard e
- * restituisce l'elenco — inviandolo anche via email.
+ * Primo passo del flusso pubblico "Finanza Agevolata Match": data SOLO la
+ * Partita IVA (nessuna email ancora), risolve l'anagrafica via openapi.it,
+ * crea/aggiorna il Prospect e calcola i match — ma restituisce solo il
+ * CONTEGGIO delle misure compatibili, mai l'elenco. Serve a mostrare
+ * un'anteprima ("Abbiamo trovato N agevolazioni per la tua azienda") prima
+ * di chiedere l'email, che sblocca l'elenco completo tramite
+ * POST /api/pubblico/match (secondo passo, invariato).
  *
- * Fail-open sull'email (vedi inviaEmailMatch): un invio fallito non deve
- * mai impedire di mostrare i risultati già calcolati.
+ * Non tocca mai il campo `email` del Prospect: se esiste già (da una
+ * ricerca precedente completata) resta intatto; se non esiste resta null
+ * finché l'utente non la fornisce nel secondo passo. Chiamare
+ * recuperaDatiAzienda due volte (qui e nel passo finale) non genera una
+ * seconda spesa Advanced: la cache aziende la intercetta (vedi
+ * openapi-business.ts).
  */
-const bodySchema = z.object({
-  piva: z.string().min(11),
-  email: z.string().email(),
-});
-
-const dataFmt = new Intl.DateTimeFormat("it-IT", { day: "2-digit", month: "long", year: "numeric" });
+const bodySchema = z.object({ piva: z.string().min(11) });
 
 export async function POST(req: NextRequest) {
   const parsed = bodySchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
-    return NextResponse.json({ errore: "Partita IVA ed email sono obbligatorie e devono essere valide." }, { status: 400 });
+    return NextResponse.json({ errore: "La Partita IVA è obbligatoria." }, { status: 400 });
   }
 
-  const { piva, email } = parsed.data;
+  const { piva } = parsed.data;
   if (!pivaFormalmenteValida(piva)) {
     return NextResponse.json({ errore: "La Partita IVA deve essere composta da 11 cifre." }, { status: 400 });
   }
@@ -59,7 +57,8 @@ export async function POST(req: NextRequest) {
       provincia: dati.provincia,
       fatturato: dati.fatturato,
       numeroDipendenti: dati.numeroDipendenti,
-      email,
+      // Nessuna chiave `email` qui: un valore già raccolto in una ricerca
+      // precedente non deve mai essere azzerato da questo passo.
     },
     create: {
       ragioneSociale: dati.ragioneSociale,
@@ -69,42 +68,13 @@ export async function POST(req: NextRequest) {
       provincia: dati.provincia,
       fatturato: dati.fatturato,
       numeroDipendenti: dati.numeroDipendenti,
-      email,
       fonteImport: "Finanza Agevolata Match (pubblico)",
     },
   });
 
   await ricalcolaMatchPerProspect(prospect.id);
 
-  const matches = await prisma.prospectMisuraMatch.findMany({
-    where: { prospectId: prospect.id },
-    include: { misura: true },
-    orderBy: { misura: { dataScadenza: "asc" } },
-  });
-
-  const misurePerRisposta = matches.map(({ misura }) => ({
-    id: misura.id,
-    titolo: misura.titolo,
-    ente: misura.ente,
-    categoria: misura.categoria,
-    descrizioneBreve: misura.descrizioneBreve,
-    valoreFormattato: formatValoreMisura(misura),
-    scadenzaFormattata: dataFmt.format(misura.dataScadenza),
-    scadenzaStimata: misura.scadenzaStimata,
-    linkFonteUfficiale: misura.linkFonteUfficiale,
-  }));
-
-  const { inviata: emailInviata } = await inviaEmailMatch({
-    to: email,
-    ragioneSociale: dati.ragioneSociale,
-    misure: misurePerRisposta.map((m) => ({
-      id: m.id,
-      titolo: m.titolo,
-      ente: m.ente,
-      valoreFormattato: m.valoreFormattato,
-      scadenzaFormattata: m.scadenzaFormattata,
-    })),
-  });
+  const numeroMisureTrovate = await prisma.prospectMisuraMatch.count({ where: { prospectId: prospect.id } });
 
   return NextResponse.json({
     azienda: {
@@ -115,8 +85,7 @@ export async function POST(req: NextRequest) {
       fatturato: dati.fatturato,
       numeroDipendenti: dati.numeroDipendenti,
     },
-    misure: misurePerRisposta,
-    emailInviata,
+    numeroMisureTrovate,
     contatti: {
       telefono: process.env.MOLO_PHONE_NUMBER ?? null,
       bookingUrl: process.env.MOLO_BOOKING_URL ?? null,

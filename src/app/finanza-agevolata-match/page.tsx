@@ -2,17 +2,20 @@ import type { Metadata } from "next";
 import { MatchClient } from "./match-client";
 
 export const metadata: Metadata = {
-  title: "Finanza Agevolata Match — MOLO 4.0",
+  title: "Scopri i tuoi incentivi — MOLO 4.0",
   description:
-    "Inserisci la Partita IVA della tua azienda: scopri in un minuto quali bandi e incentivi puoi richiedere, in base ai dati reali monitorati da MOLO 4.0.",
+    "Inserisci la Partita IVA della tua azienda: scopri in un minuto, gratis, quali bandi e incentivi di finanza agevolata puoi richiedere oggi.",
+  robots: { index: true, follow: true },
 };
 
 /**
- * Frontend pubblico "Finanza Agevolata Match" (Fase 3) — nessun login,
- * escluso volutamente dal matcher di middleware.ts. Split server/client:
- * questo file resta un Server Component solo per poter esportare i
- * `metadata` della pagina; tutta l'interattività (form, chiamata API,
- * risultati) sta in match-client.tsx.
+ * Landing page pubblica "Scopri i tuoi incentivi" — lead magnet di MOLO 4.0
+ * sulla finanza agevolata. Non fa parte di Sonar 4.0: nessun logo Sonar,
+ * nessun componente dell'app interna, deliberatamente esclusa dal matcher
+ * di autenticazione (vedi middleware.ts) così da restare pubblica anche
+ * quando la dashboard verrà messa dietro login. Split server/client solo
+ * per poter esportare `metadata`; l'intera esperienza interattiva vive in
+ * match-client.tsx.
  */
 export default function FinanzaAgevolataMatchPage() {
   return <MatchClient />;
