@@ -422,7 +422,7 @@ function HeroInterattivo(props: {
     <div
       ref={heroRef}
       onMouseMove={onMouseMove}
-      className="relative overflow-hidden bg-[#050910] px-4 pb-16 pt-28 sm:pb-24 sm:pt-36"
+      className="relative overflow-hidden bg-[#050910] px-4 pb-10 pt-24 sm:pb-16 sm:pt-28 lg:pt-24"
     >
       {/* Sfondo: bagliori "oceano notturno" in blu e rosso MOLO + uno
           spotlight che segue il cursore + il marchio a raggiera enorme e
@@ -440,7 +440,7 @@ function HeroInterattivo(props: {
           alt=""
           width={244}
           height={260}
-          className="molo-seek absolute -left-[14rem] -top-[10rem] h-[46rem] w-auto opacity-[0.12] sm:-left-[18rem] sm:h-[58rem]"
+          className="molo-seek absolute -left-[7rem] -top-[5rem] h-[24rem] w-auto opacity-[0.09] sm:-left-[14rem] sm:-top-[10rem] sm:h-[46rem] sm:opacity-[0.12] lg:-left-[18rem] lg:h-[58rem]"
         />
         <div className="absolute -bottom-40 -right-24 h-[36rem] w-[36rem] animate-float rounded-full bg-[#FF2D16]/20 blur-[130px]" style={{ animationDelay: "-7s" }} />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.06),transparent_55%)]" />
@@ -456,16 +456,21 @@ function HeroInterattivo(props: {
 
       <div className="relative mx-auto max-w-6xl">
         {stato.fase === "form" ? (
-          <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:gap-6">
+          <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[1.05fr_0.95fr] lg:gap-6">
             <div>
               <ContenutoHeroTestuale />
-              <div className="mt-9">
+              <div className="mt-6 lg:hidden">
+                <SceneBussola />
+              </div>
+              <div className="mt-6">
                 <CardScura>
                   <FormPivaView piva={props.piva} setPiva={props.setPiva} onSubmit={props.onScansiona} />
                 </CardScura>
               </div>
             </div>
-            <SceneBussola />
+            <div className="hidden lg:block">
+              <SceneBussola />
+            </div>
           </div>
         ) : (
           <div className="mx-auto max-w-xl">
@@ -501,35 +506,28 @@ function HeroInterattivo(props: {
 }
 
 function ContenutoHeroTestuale() {
-  const parole1 = ["La", "tua", "azienda"];
-  const parole2 = ["ha", "diritto", "a", "un", "incentivo?"];
+  const parole = ["La", "tua", "azienda", "ha", "diritto", "a", "un", "incentivo?"];
   return (
     <div style={{ perspective: "600px" }}>
-      <span className="molo-word inline-flex items-center gap-2 rounded-full bg-[#FF2D16]/15 px-3.5 py-1.5 text-[12px] font-bold uppercase tracking-wider text-[#FF6A56] ring-1 ring-[#FF2D16]/30">
+      <span className="molo-word inline-flex items-center gap-2 rounded-full bg-[#FF2D16]/15 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-[#FF6A56] ring-1 ring-[#FF2D16]/30">
         Finanza agevolata · verifica gratuita
       </span>
-      <h1 className="mt-5 text-[38px] font-extrabold leading-[1.04] tracking-tight text-white sm:text-[56px] lg:text-[64px]">
-        {parole1.map((p, i) => (
-          <span key={p} className="molo-word mr-[0.28em]" style={{ animationDelay: `${0.08 + i * 0.07}s` }}>
-            {p}
-          </span>
-        ))}
-        <br />
-        {parole2.map((p, i) => (
-          <span key={p} className="molo-word mr-[0.28em]" style={{ animationDelay: `${0.3 + i * 0.07}s` }}>
+      <h1 className="mt-3.5 text-[30px] font-extrabold leading-[1.08] tracking-tight text-white sm:text-[40px] lg:text-[44px]">
+        {parole.map((p, i) => (
+          <span key={p} className="molo-word mr-[0.28em]" style={{ animationDelay: `${0.06 + i * 0.05}s` }}>
             {p}
           </span>
         ))}
         <span
-          className="molo-word molo-display block bg-gradient-to-r from-[#FF6A56] via-[#FF2D16] to-[#ff7a3d] bg-clip-text text-[46px] italic leading-[1.05] tracking-tight text-transparent sm:text-[68px] lg:text-[76px]"
-          style={{ animationDelay: "0.75s" }}
+          className="molo-word molo-display block bg-gradient-to-r from-[#FF6A56] via-[#FF2D16] to-[#ff7a3d] bg-clip-text italic leading-[1.1] tracking-tight text-transparent"
+          style={{ animationDelay: "0.55s" }}
         >
           Scoprilo in 60&nbsp;secondi.
         </span>
       </h1>
-      <p className="molo-word mt-5 max-w-xl text-[15px] leading-relaxed text-white/60 sm:text-base" style={{ animationDelay: "0.95s" }}>
-        Inserisci la Partita IVA: analizziamo la tua azienda e la confrontiamo con tutti i bandi e gli incentivi di
-        finanza agevolata attivi o in arrivo, monitorati ogni giorno da fonti ufficiali. Gratis, senza impegno.
+      <p className="molo-word mt-3.5 max-w-md text-[14px] leading-relaxed text-white/60 sm:text-[15px]" style={{ animationDelay: "0.75s" }}>
+        Inserisci la Partita IVA: la confrontiamo con tutti i bandi e gli incentivi attivi o in arrivo, monitorati
+        ogni giorno da fonti ufficiali. Gratis, senza impegno.
       </p>
     </div>
   );
@@ -608,7 +606,7 @@ function SceneBussola() {
 
 function CardScura({ children }: { children: React.ReactNode }) {
   return (
-    <div className="molo-reveal molo-in rounded-[28px] bg-white p-6 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.55)] sm:p-8">{children}</div>
+    <div className="molo-reveal molo-in rounded-[28px] bg-white p-5 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.55)] sm:p-7">{children}</div>
   );
 }
 
@@ -642,7 +640,7 @@ function FormPivaView({ piva, setPiva, onSubmit }: { piva: string; setPiva: (v: 
           placeholder="12345678901"
           minLength={11}
           maxLength={11}
-          className="h-14 flex-1 rounded-2xl border-2 border-[#2B2E34]/10 bg-[#F9F9FB] px-5 text-[17px] font-semibold tracking-wide text-[#2B2E34] outline-none transition-colors placeholder:text-[#2B2E34]/25 focus:border-[#198FD9] focus:bg-white"
+          className="h-[3.25rem] flex-1 rounded-2xl border-2 border-[#2B2E34]/10 bg-[#F9F9FB] px-5 text-[17px] font-semibold tracking-wide text-[#2B2E34] outline-none transition-colors placeholder:text-[#2B2E34]/25 focus:border-[#198FD9] focus:bg-white"
         />
         <button
           ref={btnRef}
@@ -650,7 +648,7 @@ function FormPivaView({ piva, setPiva, onSubmit }: { piva: string; setPiva: (v: 
           onMouseMove={onMagnetMove}
           onMouseLeave={onMagnetLeave}
           disabled={piva.length !== 11}
-          className="molo-glow-btn group inline-flex h-14 shrink-0 items-center justify-center gap-2 rounded-2xl bg-[#FF2D16] px-7 text-[16px] font-bold text-white transition-[transform,background-color,box-shadow] duration-200 hover:bg-[#e0210d] active:scale-[0.97] disabled:cursor-not-allowed disabled:animate-none disabled:opacity-40 disabled:shadow-none"
+          className="molo-glow-btn group inline-flex h-[3.25rem] shrink-0 items-center justify-center gap-2 rounded-2xl bg-[#FF2D16] px-7 text-[16px] font-bold text-white transition-[transform,background-color,box-shadow] duration-200 hover:bg-[#e0210d] active:scale-[0.97] disabled:cursor-not-allowed disabled:animate-none disabled:opacity-40 disabled:shadow-none"
         >
           Scansiona ora
           <ArrowIcon className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
@@ -658,7 +656,7 @@ function FormPivaView({ piva, setPiva, onSubmit }: { piva: string; setPiva: (v: 
       </div>
       <p className="mt-2.5 text-[12.5px] text-[#2B2E34]/40">11 cifre, senza spazi né il prefisso IT. La verifica è gratuita e non comporta alcun impegno.</p>
 
-      <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-[#2B2E34]/[0.06] pt-5 text-[12.5px] font-medium text-[#2B2E34]/50">
+      <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-[#2B2E34]/[0.06] pt-3.5 text-[12px] font-medium text-[#2B2E34]/50">
         <span className="inline-flex items-center gap-1.5">
           <CheckIcon className="h-3.5 w-3.5 text-[#65BD7D]" /> Nessun impegno
         </span>
