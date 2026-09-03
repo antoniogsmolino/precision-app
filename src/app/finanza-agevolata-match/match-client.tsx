@@ -375,18 +375,26 @@ function GranaOverlay() {
 
 function IntestazioneMinima({ contatti }: { contatti: Contatti | null }) {
   return (
-    <header className="absolute inset-x-0 top-0 z-20 flex items-center justify-between px-4 py-4 sm:px-8 sm:py-6">
-      <div className="flex items-center gap-2.5 rounded-2xl bg-white/95 px-3.5 py-2 shadow-[0_8px_30px_-12px_rgba(0,0,0,0.35)] backdrop-blur">
-        <Image src="/molo-logo.png" alt="MOLO 4.0" width={300} height={89} className="h-6 w-auto sm:h-7" priority />
-      </div>
-      {contatti?.telefono && (
+    <header className="absolute inset-x-0 top-0 z-20 grid grid-cols-[1fr_auto_1fr] items-center gap-3 px-4 py-5 sm:px-8 sm:py-7">
+      <div />
+      <Image
+        src="/molo-logo.png"
+        alt="MOLO 4.0"
+        width={300}
+        height={89}
+        className="h-8 w-auto brightness-0 invert sm:h-10"
+        priority
+      />
+      {contatti?.telefono ? (
         <a
           href={`tel:${contatti.telefono}`}
-          className="hidden items-center gap-1.5 rounded-full bg-white/10 px-4 py-2 text-[13px] font-semibold text-white ring-1 ring-white/25 backdrop-blur transition-colors hover:bg-white/20 sm:inline-flex"
+          className="hidden items-center justify-self-end gap-1.5 rounded-full bg-white/10 px-4 py-2 text-[13px] font-semibold text-white ring-1 ring-white/25 backdrop-blur transition-colors hover:bg-white/20 sm:inline-flex"
         >
           <PhoneIcon className="h-3.5 w-3.5" />
           {contatti.telefono}
         </a>
+      ) : (
+        <div />
       )}
     </header>
   );
