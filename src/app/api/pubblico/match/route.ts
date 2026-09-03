@@ -3,7 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { pivaFormalmenteValida, recuperaDatiAzienda } from "@/lib/integrations/openapi-business";
 import { ricalcolaMatchPerProspect } from "@/lib/matching/engine";
-import { formatValoreMisura } from "@/lib/misure/valore";
+import { formatValoreMisura, stimaValoreMassimoMisura } from "@/lib/misure/valore";
 import { inviaEmailMatch } from "@/lib/email/match-email";
 
 export const dynamic = "force-dynamic";
@@ -89,6 +89,11 @@ export async function POST(req: NextRequest) {
     categoria: misura.categoria,
     descrizioneBreve: misura.descrizioneBreve,
     valoreFormattato: formatValoreMisura(misura),
+    // Stima puntuale (mai una promessa di importo ottenibile, vedi
+    // docstring di stimaValoreMassimoMisura) usata solo per dare un
+    // ordine di grandezza sulla landing — "fino a €X di agevolazioni
+    // potenzialmente compatibili", mai un numero certo.
+    valoreStimato: stimaValoreMassimoMisura(misura, dati.fatturato),
     scadenzaFormattata: dataFmt.format(misura.dataScadenza),
     scadenzaStimata: misura.scadenzaStimata,
     linkFonteUfficiale: misura.linkFonteUfficiale,

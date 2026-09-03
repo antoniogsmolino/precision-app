@@ -51,6 +51,8 @@ interface MisuraRisultato {
   categoria: string;
   descrizioneBreve: string;
   valoreFormattato: string;
+  /** Stima puntuale in euro (0 se non calcolabile) — mai una promessa, solo un ordine di grandezza. */
+  valoreStimato: number;
   scadenzaFormattata: string;
   scadenzaStimata: boolean;
   linkFonteUfficiale: string;
@@ -107,6 +109,45 @@ function Reveal({ children, delay = 0, className = "" }: { children: React.React
       {children}
     </div>
   );
+}
+
+/** Anima un numero da 0 al valore target quando entra in viewport (ease-out, ~1.4s). */
+function useCountUp(target: number, durataMs = 1400): [RefObject<HTMLDivElement>, number] {
+  const [ref, visto] = useInView<HTMLDivElement>();
+  const [valore, setValore] = useState(0);
+  useEffect(() => {
+    if (!visto || target <= 0) return;
+    let frame: number;
+    const inizio = performance.now();
+    const passo = (ora: number) => {
+      const t = Math.min(1, (ora - inizio) / durataMs);
+      const eased = 1 - Math.pow(1 - t, 3);
+      setValore(Math.round(target * eased));
+      if (t < 1) frame = requestAnimationFrame(passo);
+    };
+    frame = requestAnimationFrame(passo);
+    return () => cancelAnimationFrame(frame);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visto, target]);
+  return [ref, visto ? valore : 0];
+}
+
+/** Leggero tilt 3D che segue il cursore — per card "vetro" con un tocco di profondità reale. */
+function useTilt<T extends HTMLElement>() {
+  const ref = useRef<T>(null);
+  function onMouseMove(e: React.MouseEvent<T>) {
+    const el = ref.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const px = (e.clientX - r.left) / r.width - 0.5;
+    const py = (e.clientY - r.top) / r.height - 0.5;
+    el.style.transform = `perspective(900px) rotateX(${(-py * 7).toFixed(2)}deg) rotateY(${(px * 7).toFixed(2)}deg) translateY(-4px)`;
+  }
+  function onMouseLeave() {
+    const el = ref.current;
+    if (el) el.style.transform = "perspective(900px) rotateX(0deg) rotateY(0deg) translateY(0)";
+  }
+  return { ref, onMouseMove, onMouseLeave };
 }
 
 /* ---------------------------------- App ------------------------------------ */
@@ -897,13 +938,24 @@ function ErroreView({ messaggio, onReset }: { messaggio: string; onReset: () => 
 
 /* ---------------------------- Risultato finale ----------------------------- */
 
+/**
+ * Quante misure mostrare "a vetrina" prima del CTA. Scelta di prodotto
+ * (03/09/2026, su richiesta esplicita): mostrare le prime N migliori per
+ * valore stimato e spingere il resto verso una chiamata con un business
+ * navigator MOLO, invece di scaricare l'intero elenco (fino a decine di
+ * card) sullo schermo — più coerente con l'obiettivo di conversione della
+ * landing, e nulla va davvero perso: l'elenco COMPLETO resta comunque
+ * inviato via email (vedi inviaEmailMatch in /api/pubblico/match) a
+ * prescindere da quante card sono mostrate qui.
+ */
+const LIMITE_VETRINA = 6;
+
 function RisultatoSezione({ stato, onReset }: { stato: Extract<Stato, { fase: "risultato" }>; onReset: () => void }) {
   const { azienda, misure, emailInviata, contatti } = stato;
-  const [categoriaAttiva, setCategoriaAttiva] = useState<string | null>(null);
-  const categorie = Array.from(new Set(misure.map((m) => m.categoria))).sort(
-    (a, b) => ordineCategoria(a) - ordineCategoria(b),
-  );
-  const misureFiltrate = categoriaAttiva ? misure.filter((m) => m.categoria === categoriaAttiva) : misure;
+
+  const misureVetrina = [...misure].sort((a, b) => b.valoreStimato - a.valoreStimato).slice(0, LIMITE_VETRINA);
+  const numeroNascoste = misure.length - misureVetrina.length;
+  const valoreTotaleStimato = misure.reduce((somma, m) => somma + m.valoreStimato, 0);
 
   return (
     <div className="bg-gradient-to-b from-[#040c18] to-[#0a2340] pb-16 pt-28 sm:pb-24 sm:pt-36">
@@ -912,11 +964,6 @@ function RisultatoSezione({ stato, onReset }: { stato: Extract<Stato, { fase: "r
           <div>
             <p className="text-[11px] font-bold uppercase tracking-wide text-white/40">Risultato per</p>
             <p className="molo-display mt-1 text-[26px] font-extrabold text-white sm:text-3xl">{azienda.ragioneSociale}</p>
-            {emailInviata && (
-              <p className="mt-2 inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#65BD7D]">
-                <CheckIcon className="h-4 w-4" /> Ti abbiamo anche mandato questo elenco via email.
-              </p>
-            )}
           </div>
           <div className="flex flex-wrap gap-1.5 sm:justify-end">
             {azienda.ateco && <ChipInfoScura>ATECO {azienda.ateco}</ChipInfoScura>}
@@ -936,29 +983,23 @@ function RisultatoSezione({ stato, onReset }: { stato: Extract<Stato, { fase: "r
           </div>
         ) : (
           <>
-            <div className="mt-10 flex flex-col gap-4 sm:mt-14 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <p className="text-[13px] font-bold uppercase tracking-wider text-[#FF6A56]">Risultato</p>
-                <h2 className="molo-display mt-1 text-[clamp(1.75rem,1.3rem+1.8vw,2.75rem)] font-extrabold text-white">
-                  {misure.length === 1 ? "1 agevolazione compatibile" : `${misure.length} agevolazioni compatibili`}
-                </h2>
-              </div>
-              {categorie.length > 1 && (
-                <div className="flex flex-wrap gap-2">
-                  <FiltroChip attivo={categoriaAttiva === null} colore="#198FD9" onClick={() => setCategoriaAttiva(null)}>
-                    Tutte · {misure.length}
-                  </FiltroChip>
-                  {categorie.map((c) => (
-                    <FiltroChip key={c} attivo={categoriaAttiva === c} colore={ACCENTO_CATEGORIA[c] ?? "#2B2E34"} onClick={() => setCategoriaAttiva(c)}>
-                      {CATEGORIA_LABEL[c] ?? c} · {misure.filter((m) => m.categoria === c).length}
-                    </FiltroChip>
-                  ))}
-                </div>
-              )}
+            <ValoreStimatoHero valoreTotale={valoreTotaleStimato} numeroMisure={misure.length} />
+
+            <div className="mt-10 sm:mt-12">
+              <p className="text-center text-[13px] font-bold uppercase tracking-wider text-[#FF6A56]">
+                {numeroNascoste > 0 ? "Un assaggio per te" : "Risultato"}
+              </p>
+              <h2 className="molo-display mt-1 text-center text-[clamp(1.4rem,1.15rem+1vw,2rem)] font-extrabold text-white">
+                {numeroNascoste > 0
+                  ? `Le ${misureVetrina.length} agevolazioni più interessanti`
+                  : misure.length === 1
+                    ? "1 agevolazione compatibile"
+                    : `${misure.length} agevolazioni compatibili`}
+              </h2>
             </div>
 
-            <div className="mt-6 grid grid-cols-1 gap-4 sm:mt-8 md:grid-cols-2 xl:grid-cols-3">
-              {misureFiltrate.map((m, i) => (
+            <div className="mt-7 grid grid-cols-1 gap-5 sm:mt-9 md:grid-cols-2 xl:grid-cols-3">
+              {misureVetrina.map((m, i) => (
                 <Reveal key={m.id} delay={(i % 3) * 90}>
                   <MisuraCardRisultato misura={m} />
                 </Reveal>
@@ -967,7 +1008,13 @@ function RisultatoSezione({ stato, onReset }: { stato: Extract<Stato, { fase: "r
           </>
         )}
 
-        <ContattoCTA contatti={contatti} />
+        <ContattoCTA
+          contatti={contatti}
+          ragioneSociale={azienda.ragioneSociale}
+          valoreTotaleStimato={valoreTotaleStimato}
+          numeroNascoste={numeroNascoste}
+          emailInviata={emailInviata}
+        />
 
         <button onClick={onReset} className="mx-auto mt-8 block text-[13px] font-semibold text-white/40 hover:text-white/70">
           ← Verifica un&apos;altra Partita IVA
@@ -981,27 +1028,36 @@ function ChipInfoScura({ children }: { children: React.ReactNode }) {
   return <span className="rounded-full bg-white/10 px-2.5 py-1 text-[12px] font-semibold text-white/70 ring-1 ring-white/15">{children}</span>;
 }
 
-function FiltroChip({
-  attivo,
-  colore,
-  onClick,
-  children,
-}: {
-  attivo: boolean;
-  colore: string;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
+/** Headline "money-first": la cifra stimata prima ancora delle card, il vero gancio della pagina. */
+function ValoreStimatoHero({ valoreTotale, numeroMisure }: { valoreTotale: number; numeroMisure: number }) {
+  const [ref, valoreAnimato] = useCountUp(valoreTotale);
+
+  if (valoreTotale <= 0) {
+    return (
+      <div className="molo-reveal molo-in mt-10 text-center sm:mt-14">
+        <p className="text-[13px] font-bold uppercase tracking-wider text-[#FF6A56]">Risultato</p>
+        <h2 className="molo-display mt-2 text-[clamp(1.75rem,1.3rem+1.8vw,2.75rem)] font-extrabold text-white">
+          {numeroMisure === 1 ? "1 agevolazione compatibile" : `${numeroMisure} agevolazioni compatibili`}
+        </h2>
+      </div>
+    );
+  }
+
   return (
-    <button
-      onClick={onClick}
-      className={`inline-flex items-center rounded-full px-3.5 py-1.5 text-[12.5px] font-bold transition-colors ${
-        attivo ? "text-white shadow-[0_8px_20px_-8px_rgba(0,0,0,0.5)]" : "bg-white/[0.06] text-white/55 ring-1 ring-white/10 hover:bg-white/10 hover:text-white/80"
-      }`}
-      style={attivo ? { backgroundColor: colore } : undefined}
-    >
-      {children}
-    </button>
+    <div ref={ref} className="relative mt-10 text-center sm:mt-14">
+      <div aria-hidden className="pointer-events-none absolute left-1/2 top-1/2 h-72 w-72 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#198FD9]/25 blur-[110px]" />
+      <p className="relative text-[13px] font-bold uppercase tracking-wider text-[#FF6A56]">Il tuo potenziale stimato</p>
+      <p className="molo-display relative mt-2 text-[clamp(2.5rem,1.6rem+4.2vw,5.25rem)] font-extrabold leading-[1.05] text-white">
+        fino a{" "}
+        <span className="bg-gradient-to-r from-[#65BD7D] via-[#8fd1ff] to-[#198FD9] bg-clip-text text-transparent">
+          {euroFmt.format(valoreAnimato)}
+        </span>
+      </p>
+      <p className="relative mx-auto mt-3 max-w-lg text-[15px] text-white/55">
+        stimati su {numeroMisure} agevolazion{numeroMisure === 1 ? "e" : "i"} compatibil{numeroMisure === 1 ? "e" : "i"} — un
+        ordine di grandezza indicativo, da verificare misura per misura.
+      </p>
+    </div>
   );
 }
 
@@ -1011,61 +1067,112 @@ const ACCENTO_CATEGORIA: Record<string, string> = {
   CAMERALE: "#E4A858",
   FISCALE: "#FF2D16",
 };
-const ORDINE_CATEGORIE = ["NAZIONALE", "REGIONALE", "CAMERALE", "FISCALE"];
-function ordineCategoria(c: string): number {
-  const i = ORDINE_CATEGORIE.indexOf(c);
-  return i === -1 ? 99 : i;
-}
 
 function MisuraCardRisultato({ misura }: { misura: MisuraRisultato }) {
-  const accento = ACCENTO_CATEGORIA[misura.categoria] ?? "#2B2E34";
+  const accento = ACCENTO_CATEGORIA[misura.categoria] ?? "#198FD9";
+  const tilt = useTilt<HTMLDivElement>();
+
+  let fonteLabel = "fonte ufficiale";
+  try {
+    fonteLabel = new URL(misura.linkFonteUfficiale).hostname.replace(/^www\./, "");
+  } catch {
+    // link non assoluto/malformato: resta il fallback generico, mai un crash per un dato di contorno.
+  }
+
   return (
-    <div className="relative flex h-full flex-col overflow-hidden rounded-2xl bg-white p-5 shadow-[0_16px_40px_-18px_rgba(0,0,0,0.35)] transition-transform duration-300 hover:-translate-y-1.5 sm:p-6">
-      <span aria-hidden className="absolute inset-x-0 top-0 h-1.5" style={{ backgroundColor: accento }} />
+    <div
+      ref={tilt.ref}
+      onMouseMove={tilt.onMouseMove}
+      onMouseLeave={tilt.onMouseLeave}
+      style={{ transformStyle: "preserve-3d" }}
+      className="group relative flex h-full flex-col overflow-hidden rounded-[22px] border border-white/10 bg-white/[0.06] p-5 shadow-[0_20px_60px_-25px_rgba(0,0,0,0.75)] backdrop-blur-xl transition-transform duration-200 ease-out will-change-transform sm:p-6"
+    >
+      <span aria-hidden className="absolute inset-x-0 top-0 h-[3px]" style={{ backgroundColor: accento }} />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -right-8 -top-8 h-28 w-28 rounded-full opacity-0 blur-2xl transition-opacity duration-300 group-hover:opacity-40"
+        style={{ backgroundColor: accento }}
+      />
       <span
-        className="mt-1.5 inline-flex w-fit items-center rounded-full px-2.5 py-0.5 text-[11px] font-bold"
-        style={{ backgroundColor: `${accento}1A`, color: accento }}
+        className="relative inline-flex w-fit items-center rounded-full px-2.5 py-0.5 text-[11px] font-bold"
+        style={{ backgroundColor: `${accento}26`, color: accento }}
       >
         {CATEGORIA_LABEL[misura.categoria] ?? misura.categoria}
       </span>
-      <p className="mt-3 line-clamp-2 text-[16px] font-bold leading-snug text-[#2B2E34]">{misura.titolo}</p>
-      <p className="mt-0.5 text-[12.5px] text-[#2B2E34]/45">{misura.ente}</p>
-      <p className="mt-3 line-clamp-2 flex-1 text-[13.5px] leading-relaxed text-[#2B2E34]/65">{misura.descrizioneBreve}</p>
-      <div className="mt-4 flex items-end justify-between gap-3 border-t border-[#2B2E34]/[0.06] pt-3.5">
-        <div>
-          <span className="block text-[16px] font-extrabold text-[#2B2E34]">{misura.valoreFormattato}</span>
-          <span className="text-[12px] text-[#2B2E34]/40">
+      <p className="relative mt-3 line-clamp-2 text-[16.5px] font-bold leading-snug text-white">{misura.titolo}</p>
+      <p className="relative mt-0.5 text-[12.5px] text-white/45">{misura.ente}</p>
+
+      <div className="relative mt-auto pt-4">
+        <div className="border-t border-white/10 pt-3.5">
+          <span className="block text-[19px] font-extrabold text-white">{misura.valoreFormattato}</span>
+          <span className="text-[12px] text-white/40">
             {misura.scadenzaStimata ? "Scadenza da verificare" : `Scad. ${misura.scadenzaFormattata}`}
           </span>
         </div>
-        <a
-          href={misura.linkFonteUfficiale}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex shrink-0 items-center gap-1 text-[12.5px] font-bold text-[#198FD9] hover:text-[#12699e]"
-        >
-          Fonte <ArrowIcon className="h-3 w-3" />
-        </a>
+        <p className="mt-2.5 truncate text-[11px] text-white/30">Fonte: {fonteLabel}</p>
       </div>
     </div>
   );
 }
 
-function ContattoCTA({ contatti }: { contatti: Contatti }) {
+function ContattoCTA({
+  contatti,
+  ragioneSociale,
+  valoreTotaleStimato,
+  numeroNascoste,
+  emailInviata,
+}: {
+  contatti: Contatti;
+  ragioneSociale: string;
+  valoreTotaleStimato: number;
+  numeroNascoste: number;
+  emailInviata: boolean;
+}) {
   const [calendarioAperto, setCalendarioAperto] = useState(false);
   if (!contatti.telefono && !contatti.bookingUrl) return null;
 
   return (
-    <div className="molo-reveal molo-in relative mt-10 overflow-hidden rounded-[28px] shadow-[0_30px_80px_-20px_rgba(0,0,0,0.55)] sm:mt-14">
+    <div className="molo-reveal molo-in relative mt-10 overflow-hidden rounded-[28px] shadow-[0_30px_80px_-20px_rgba(0,0,0,0.6)] sm:mt-14">
       <div className="relative overflow-hidden bg-[#2B2E34] p-8 text-center text-white sm:p-12">
         <div aria-hidden className="pointer-events-none absolute -right-16 -top-24 h-72 w-72 rounded-full bg-[#FF2D16]/25 blur-[110px]" />
-        <div aria-hidden className="pointer-events-none absolute -bottom-24 -left-16 h-72 w-72 rounded-full bg-[#198FD9]/20 blur-[110px]" />
-        <p className="molo-display relative text-[clamp(1.5rem,1.2rem+1vw,2.25rem)] font-bold">
-          Vuoi una mano a capire quali richiedere davvero?
+        <div aria-hidden className="pointer-events-none absolute -bottom-24 -left-16 h-72 w-72 rounded-full bg-[#198FD9]/25 blur-[110px]" />
+
+        <span className="relative inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-wide text-white/70 ring-1 ring-white/15">
+          <SparkleIcon className="h-3.5 w-3.5 text-[#E4A858]" /> Il prossimo passo
+        </span>
+
+        <p className="molo-display relative mt-4 text-[clamp(1.4rem,1.05rem+1.2vw,2.15rem)] font-bold leading-snug">
+          {numeroNascoste > 0 ? (
+            <>
+              Abbiamo trovato altre <span className="text-[#8fd1ff]">{numeroNascoste}</span> agevolazioni per {ragioneSociale}
+            </>
+          ) : (
+            "Vuoi una mano a capire quali richiedere davvero?"
+          )}
         </p>
-        <p className="relative mx-auto mt-2 max-w-md text-[14.5px] text-white/55">
-          Il team MOLO 4.0 verifica con te i requisiti reali e ti aiuta a preparare la domanda, senza impegno.
+        <p className="relative mx-auto mt-2.5 max-w-lg text-[14.5px] text-white/55">
+          {numeroNascoste > 0 ? (
+            <>
+              Un business navigator MOLO 4.0 te le mostra tutte nel dettaglio
+              {valoreTotaleStimato > 0 && (
+                <>
+                  {" "}
+                  — fino a <strong className="text-white">{euroFmt.format(valoreTotaleStimato)}</strong> di agevolazioni
+                  potenzialmente compatibili
+                </>
+              )}
+              , e ti aiuta a capire quali richiedere davvero. Nessun impegno.
+            </>
+          ) : (
+            "Il team MOLO 4.0 verifica con te i requisiti reali e ti aiuta a preparare la domanda, senza impegno."
+          )}
         </p>
+        {emailInviata && (
+          <p className="relative mt-3 inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-[#8fd1c9]">
+            <CheckIcon className="h-3.5 w-3.5" /> Ti abbiamo già inviato l&apos;elenco completo via email.
+          </p>
+        )}
+
         <div className="relative mt-6 flex flex-wrap justify-center gap-3">
           {contatti.bookingUrl && (
             <button
@@ -1262,6 +1369,15 @@ function PhoneIcon({ className }: { className?: string }) {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
+    </svg>
+  );
+}
+
+function SparkleIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
+      <path d="M12 2l1.9 6.1L20 10l-6.1 1.9L12 18l-1.9-6.1L4 10l6.1-1.9L12 2Z" />
+      <path d="M19 15l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8L19 15Z" opacity="0.7" />
     </svg>
   );
 }
