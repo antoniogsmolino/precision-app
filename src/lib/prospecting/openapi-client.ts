@@ -41,7 +41,16 @@ async function chiamaOpenApi<T>(path: string, searchParams?: Record<string, stri
 
   try {
     const res = await fetch(url.toString(), {
-      headers: { Authorization: apiKey, Accept: "application/json" },
+      // Un 403 generico (HTML, senza corpo JSON) osservato in produzione
+      // con la chiave sandbox è la firma tipica di un WAF/CDN che blocca
+      // richieste server-to-server prive di uno User-Agent riconoscibile,
+      // non un rifiuto applicativo della chiave — fetch di Node non ne
+      // manda uno di default.
+      headers: {
+        Authorization: apiKey,
+        Accept: "application/json",
+        "User-Agent": "MOLO4.0-RadarFinanzaAgevolata/1.0 (+https://molo4punto0.it)",
+      },
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
 
