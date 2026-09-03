@@ -481,9 +481,6 @@ function HeroInterattivo(props: {
           <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[1.05fr_0.95fr] lg:gap-10 xl:gap-16">
             <div>
               <ContenutoHeroTestuale />
-              <div className="mt-6 lg:hidden">
-                <SceneBussola />
-              </div>
               <div className="mt-6">
                 <CardScura>
                   <FormPivaView piva={props.piva} setPiva={props.setPiva} onSubmit={props.onScansiona} />
@@ -631,7 +628,7 @@ function SceneBussola() {
 
 function CardScura({ children }: { children: React.ReactNode }) {
   return (
-    <div className="molo-reveal molo-in rounded-[28px] bg-white p-5 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.55)] sm:p-7">{children}</div>
+    <div className="molo-reveal molo-in rounded-[28px] bg-white p-6 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.55)] sm:p-8">{children}</div>
   );
 }
 
@@ -652,10 +649,10 @@ function FormPivaView({ piva, setPiva, onSubmit }: { piva: string; setPiva: (v: 
 
   return (
     <form onSubmit={onSubmit}>
-      <label htmlFor="piva" className="mb-1.5 block text-[13px] font-semibold text-[#2B2E34]/70">
+      <label htmlFor="piva" className="mb-2 block text-[14px] font-semibold text-[#2B2E34]/70">
         Partita IVA della tua azienda
       </label>
-      <div className="flex flex-col gap-2.5 sm:flex-row">
+      <div className="flex flex-col gap-3 sm:flex-row">
         <input
           id="piva"
           inputMode="numeric"
@@ -665,7 +662,7 @@ function FormPivaView({ piva, setPiva, onSubmit }: { piva: string; setPiva: (v: 
           placeholder="12345678901"
           minLength={11}
           maxLength={11}
-          className="h-[3.25rem] flex-1 rounded-2xl border-2 border-[#2B2E34]/10 bg-[#F9F9FB] px-5 text-[17px] font-semibold tracking-wide text-[#2B2E34] outline-none transition-colors placeholder:text-[#2B2E34]/25 focus:border-[#198FD9] focus:bg-white"
+          className="h-16 flex-1 rounded-2xl border-2 border-[#2B2E34]/10 bg-[#F9F9FB] px-6 text-[20px] font-semibold tracking-wide text-[#2B2E34] outline-none transition-colors placeholder:text-[#2B2E34]/25 focus:border-[#198FD9] focus:bg-white"
         />
         <button
           ref={btnRef}
@@ -673,7 +670,7 @@ function FormPivaView({ piva, setPiva, onSubmit }: { piva: string; setPiva: (v: 
           onMouseMove={onMagnetMove}
           onMouseLeave={onMagnetLeave}
           disabled={piva.length !== 11}
-          className="molo-glow-btn group inline-flex h-[3.25rem] shrink-0 items-center justify-center gap-2 rounded-2xl bg-[#FF2D16] px-7 text-[16px] font-bold text-white transition-[transform,background-color,box-shadow] duration-200 hover:bg-[#e0210d] active:scale-[0.97] disabled:cursor-not-allowed disabled:animate-none disabled:opacity-40 disabled:shadow-none"
+          className="molo-glow-btn group inline-flex h-16 w-full shrink-0 items-center justify-center gap-2 rounded-2xl bg-[#FF2D16] px-7 text-[17px] font-bold text-white transition-[transform,background-color,box-shadow] duration-200 hover:bg-[#e0210d] active:scale-[0.97] disabled:cursor-not-allowed disabled:animate-none disabled:opacity-40 disabled:shadow-none sm:w-auto"
         >
           Scansiona ora
           <ArrowIcon className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
