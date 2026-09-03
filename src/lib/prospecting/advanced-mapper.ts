@@ -1,26 +1,40 @@
 import type { DatiAziendaRisolti } from "./cache";
 
 /**
- * Legge i campi che servono da una risposta IT-advanced la cui struttura
- * esatta non è stata verificata contro l'API reale (nessun accesso di
- * rete da questo ambiente — stesso limite dei parser di monitoraggio
- * fonti, vedi README). Prova più percorsi plausibili per ogni campo
- * invece di assumerne uno solo: un'unica discrepanza di naming non deve
- * far fallire tutto il resto. Non inventa MAI un valore assente.
+ * Legge i campi che servono da una risposta IT-advanced. Verificato il
+ * 03/09/2026 con una risposta REALE dell'ambiente sandbox
+ * (test.company.openapi.com) — non più una struttura indovinata:
  *
- * Se in produzione una risposta 200 reale torna con questi campi vuoti,
- * il problema è quasi certamente qui — un esempio reale di risposta
- * (anche con dati anonimizzati) basta a correggere la mappatura in pochi
- * minuti, vedi schema ufficiale: console.openapi.com/oas/it/company.openapi.json
+ *   { "data": [ { "companyName", "vatCode", "taxCode", "id",
+ *       "atecoClassification": { "ateco": { "code", "description" } },
+ *       "address": { "registeredOffice": { "province",
+ *         "region": { "code", "description" }, ... } },
+ *       "pec", "balanceSheets": { "last": { "turnover", "employees", ... },
+ *       "all": [...] }, ... } ], "success", "message", "error" }
+ *
+ * Due dettagli non ovvi confermati dalla risposta reale:
+ *  - "data" è un ARRAY anche quando si cerca un solo identificativo — il
+ *    primo elemento è l'azienda trovata (fondamentale: senza questo, il
+ *    codice precedente leggeva i campi dall'array stesso, sempre undefined).
+ *  - fatturato e numero dipendenti NON sono campi diretti dell'azienda, ma
+ *    vivono dentro balanceSheets.last (l'ultimo bilancio depositato).
+ *
+ * Prova comunque più percorsi plausibili per ogni campo (mantenendo i
+ * fallback pre-esistenti) nel caso in produzione o per altre forme di
+ * azienda la risposta vari leggermente — ma i percorsi confermati vengono
+ * provati per primi. Non inventa MAI un valore assente.
  */
 export function mappaRispostaAdvanced(raw: unknown, identificativoRichiesto: string): DatiAziendaRisolti | null {
-  const corpo = (raw as any)?.data ?? (raw as any)?.result ?? raw ?? {};
+  const contenitore = (raw as any)?.data ?? (raw as any)?.result ?? raw ?? {};
+  const corpo = Array.isArray(contenitore) ? contenitore[0] : contenitore;
+  if (!corpo || typeof corpo !== "object") return null;
 
   const ragioneSociale: string | undefined =
     corpo.companyName ?? corpo.businessName ?? corpo.ragioneSociale ?? corpo.name ?? corpo.denominazione;
   if (!ragioneSociale) return null;
 
-  const pivaRaw: string | undefined = corpo.vatCode ?? corpo.piva ?? corpo.taxId ?? corpo.fiscalCode ?? corpo.codiceFiscale;
+  const pivaRaw: string | undefined =
+    corpo.vatCode ?? corpo.piva ?? corpo.taxCode ?? corpo.taxId ?? corpo.fiscalCode ?? corpo.codiceFiscale;
   // Se la risposta non riporta esplicitamente la P.IVA, usa l'identificativo
   // con cui è stata chiesta SOLO se quello stesso identificativo È una
   // P.IVA (11 cifre) — altrimenti (un ID provider) non travisarlo da P.IVA.
@@ -29,14 +43,17 @@ export function mappaRispostaAdvanced(raw: unknown, identificativoRichiesto: str
 
   const openApiId: string | null = corpo.id ?? corpo.companyId ?? corpo.providerId ?? null;
 
-  const atecoRaw = corpo.atecoClassification?.ateco2007?.code ?? corpo.ateco?.code ?? corpo.atecoCode ?? corpo.codiceAteco ?? corpo.ateco ?? null;
+  const atecoRaw =
+    corpo.atecoClassification?.ateco?.code ?? corpo.atecoClassification?.ateco2007?.code ?? corpo.ateco?.code ?? corpo.atecoCode ?? corpo.codiceAteco ?? null;
 
-  const sede = corpo.registeredOffice ?? corpo.sedeLegale ?? corpo.address ?? {};
-  const regione: string | null = sede.region ?? sede.regione ?? corpo.region ?? corpo.regione ?? null;
+  const sede = corpo.address?.registeredOffice ?? corpo.registeredOffice ?? corpo.sedeLegale ?? corpo.address ?? {};
+  const regioneRaw = sede.region?.description ?? sede.region ?? sede.regione ?? corpo.region ?? corpo.regione ?? null;
+  const regione: string | null = typeof regioneRaw === "string" ? regioneRaw : null;
   const provincia: string | null = sede.province ?? sede.provincia ?? corpo.province ?? corpo.provincia ?? null;
 
-  const fatturatoRaw = corpo.revenue ?? corpo.fatturato ?? corpo.balanceSheet?.revenue ?? corpo.financials?.revenue ?? null;
-  const dipendentiRaw = corpo.employees ?? corpo.numeroDipendenti ?? corpo.companySize?.employees ?? corpo.employeesCount ?? null;
+  const bilancioUltimo = corpo.balanceSheets?.last ?? corpo.balanceSheet ?? corpo.financials ?? {};
+  const fatturatoRaw = bilancioUltimo.turnover ?? corpo.revenue ?? corpo.fatturato ?? null;
+  const dipendentiRaw = bilancioUltimo.employees ?? corpo.employees ?? corpo.numeroDipendenti ?? corpo.companySize?.employees ?? corpo.employeesCount ?? null;
 
   // PEC — il contatto che questa integrazione garantisce (§1 delle
   // specifiche: email ordinaria/telefono/sito NON sono garantiti da qui).
@@ -47,7 +64,7 @@ export function mappaRispostaAdvanced(raw: unknown, identificativoRichiesto: str
     piva: String(piva).replace(/\s+/g, "").toUpperCase(),
     openApiId: openApiId ? String(openApiId) : null,
     ateco: atecoRaw ? String(atecoRaw).trim() : null,
-    regione: regione ? String(regione).trim() : null,
+    regione: regione ? regione.trim() : null,
     provincia: provincia ? String(provincia).trim() : null,
     fatturato: fatturatoRaw != null && Number.isFinite(Number(fatturatoRaw)) ? Number(fatturatoRaw) : null,
     numeroDipendenti: dipendentiRaw != null && Number.isFinite(Number(dipendentiRaw)) ? Number(dipendentiRaw) : null,

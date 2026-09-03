@@ -8,18 +8,18 @@
  * Sostituisce il precedente endpoint indovinato (`IT-start`, usato nella
  * prima versione di src/lib/integrations/openapi-business.ts): quello era
  * un tentativo senza conferma, questo viene direttamente dal documento di
- * specifiche del team. L'header di autenticazione ("Authorization: Bearer
- * <chiave>") è stato verificato con richieste reali il 03/09/2026: senza
- * "Bearer" la richiesta viene bloccata a monte con un 403 HTML generico,
- * mai valutata dal server applicativo. Resta però ancora da chiarire QUALE
- * valore va usato come token — sia la "Sandbox API Key" sia il "token
- * list" ottenuti dalla dashboard OpenAPI tornano entrambi
- * {"message":"Wrong Token"} se usati direttamente: molto probabilmente
- * serve un passaggio di scambio (login/auth) non ancora individuato, non
- * un problema di questo client. La forma ESATTA dei parametri di Search e
- * dei campi della risposta di Advanced resta comunque non verificata
- * contro l'API reale — vedi i commenti in query-compiler.ts e nel mapper
- * di Advanced più sotto.
+ * specifiche del team. Autenticazione ed endpoint sandbox verificati con
+ * richieste reali il 03/09/2026:
+ *  - header "Authorization: Bearer <token>" — senza "Bearer" la richiesta
+ *    viene bloccata a monte con un 403 HTML generico, mai valutata dal
+ *    server applicativo di OpenAPI;
+ *  - il <token> giusto è il valore "token" della dashboard OpenAPI, NON
+ *    la "API Key" (quella torna sempre {"message":"Wrong Token"});
+ *  - l'ambiente sandbox vive su test.company.openapi.com, un dominio
+ *    diverso da quello di produzione (company.openapi.com, il default
+ *    qui sotto) — va impostato via OPENAPI_IT_BASE_URL (vedi
+ *    .env.example). La risposta di IT-advanced verificata in sandbox ha
+ *    confermato anche la forma dei campi usata da advanced-mapper.ts.
  */
 
 const BASE_URL = process.env.OPENAPI_IT_BASE_URL ?? "https://company.openapi.com";

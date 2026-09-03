@@ -16,10 +16,9 @@
  * Prima di questa versione il codice puntava a un endpoint indovinato
  * (`IT-start`, mai confermato) — ora usa `IT-advanced/{piva}`, l'endpoint
  * che le specifiche di funzionamento del team confermano esplicitamente
- * (§7). La FORMA esatta della risposta resta comunque da verificare
- * contro l'API reale (vedi mappaRispostaAdvanced in
- * src/lib/prospecting/advanced-mapper.ts) — nessun accesso di rete da
- * questo ambiente.
+ * (§7). Endpoint, autenticazione e forma della risposta sono stati
+ * verificati con richieste reali il 03/09/2026 (vedi i commenti in testa
+ * a src/lib/prospecting/openapi-client.ts e advanced-mapper.ts).
  */
 import { chiamaAdvanced } from "@/lib/prospecting/openapi-client";
 import { mappaRispostaAdvanced } from "@/lib/prospecting/advanced-mapper";
