@@ -422,28 +422,42 @@ function HeroInterattivo(props: {
     <div
       ref={heroRef}
       onMouseMove={onMouseMove}
-      className="relative flex min-h-dvh flex-col overflow-hidden bg-[#050910] px-4 pb-10 pt-24 sm:pt-28 lg:pt-24"
+      className="relative flex min-h-dvh flex-col overflow-hidden bg-[#040c18] px-4 pb-10 pt-24 sm:pt-28 lg:pt-24"
     >
-      {/* Sfondo: bagliori "oceano notturno" in blu e rosso MOLO + uno
-          spotlight che segue il cursore + il marchio a raggiera enorme e
-          tagliato ai bordi, come nel linguaggio decorativo del sito reale
-          ("il marchio rosso funziona anche come grande elemento
-          decorativo parzialmente tagliato ai bordi delle sezioni") — qui
-          portato a un'altra scala, per un impatto molto più netto. */}
+      {/* Sfondo "oceano profondo": il vero protagonista ora è il blu MOLO
+          (#198FD9, lo stesso già verificato come colore esatto del sito
+          pubblico reale) come bagliore ampio e vivo, non solo un accento
+          su un fondo neutro — coerente con la metafora marittima del
+          brand (l'"oceano", non il "buio"). Il rosso resta, ma come
+          accento identitario (il marchio a raggiera, tagliato ai bordi
+          come nel linguaggio decorativo del sito reale) e un bagliore più
+          piccolo, per non competere con il blu. */}
       <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-[#040c18] via-[#0a2947] to-[#0f4470]" />
+        <div className="absolute right-[-18%] top-[-8%] h-[62rem] w-[62rem] rounded-full bg-[#198FD9]/45 blur-[170px]" />
         <div
-          className="absolute inset-0 opacity-70 transition-[background] duration-300"
-          style={{ background: `radial-gradient(600px circle at ${spot.x}% ${spot.y}%, rgba(25,143,217,0.16), transparent 70%)` }}
+          className="absolute left-[8%] top-[38%] h-[42rem] w-[42rem] animate-float rounded-full bg-[#4dc0ff]/25 blur-[150px]"
+          style={{ animationDelay: "-4s" }}
+        />
+        <div
+          className="absolute inset-0 opacity-90 transition-[background] duration-300"
+          style={{ background: `radial-gradient(700px circle at ${spot.x}% ${spot.y}%, rgba(77,192,255,0.22), transparent 70%)` }}
         />
         <Image
           src="/molo-mark.png"
           alt=""
           width={244}
           height={260}
-          className="molo-seek absolute -left-[7rem] -top-[5rem] h-[24rem] w-auto opacity-[0.09] sm:-left-[14rem] sm:-top-[10rem] sm:h-[46rem] sm:opacity-[0.12] lg:-left-[18rem] lg:h-[58rem]"
+          className="molo-seek absolute -left-[7rem] -top-[5rem] h-[24rem] w-auto opacity-[0.11] sm:-left-[14rem] sm:-top-[10rem] sm:h-[46rem] sm:opacity-[0.14] lg:-left-[18rem] lg:h-[58rem]"
         />
-        <div className="absolute -bottom-40 -right-24 h-[36rem] w-[36rem] animate-float rounded-full bg-[#FF2D16]/20 blur-[130px]" style={{ animationDelay: "-7s" }} />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.06),transparent_55%)]" />
+        <div className="absolute -bottom-40 -right-24 h-[30rem] w-[30rem] animate-float rounded-full bg-[#FF2D16]/16 blur-[130px]" style={{ animationDelay: "-7s" }} />
+        <div
+          className="absolute inset-0 opacity-[0.07]"
+          style={{
+            backgroundImage: "repeating-linear-gradient(112deg, rgba(255,255,255,.9) 0px, rgba(255,255,255,.9) 1.5px, transparent 1.5px, transparent 110px)",
+          }}
+        />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.08),transparent_55%)]" />
         <div
           className="absolute inset-0 opacity-[0.05]"
           style={{
@@ -882,7 +896,7 @@ function RisultatoSezione({ stato, onReset }: { stato: Extract<Stato, { fase: "r
   const { azienda, misure, emailInviata, contatti } = stato;
 
   return (
-    <div className="bg-[#050910] pb-16 pt-28 sm:pb-24 sm:pt-36">
+    <div className="bg-gradient-to-b from-[#040c18] to-[#0a2340] pb-16 pt-28 sm:pb-24 sm:pt-36">
       <div className="mx-auto max-w-4xl px-4 xl:max-w-5xl">
         <div className="molo-reveal molo-in rounded-[28px] bg-white p-6 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.55)] sm:p-8">
           <p className="text-[11px] font-bold uppercase tracking-wide text-[#2B2E34]/40">Risultato per</p>
@@ -1061,7 +1075,7 @@ function ComeFunziona() {
 
 function SezioneTrigger() {
   return (
-    <section className="relative overflow-hidden bg-[#0E1420] px-4 py-16 sm:py-24">
+    <section className="relative overflow-hidden bg-gradient-to-br from-[#081a2e] to-[#0f3a5f] px-4 py-16 sm:py-24">
       <div aria-hidden className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-[0.06]">
         <Image src="/molo-mark.png" alt="" width={244} height={260} className="molo-seek h-[30rem] w-auto" />
       </div>
