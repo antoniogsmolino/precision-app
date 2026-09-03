@@ -8,11 +8,18 @@
  * Sostituisce il precedente endpoint indovinato (`IT-start`, usato nella
  * prima versione di src/lib/integrations/openapi-business.ts): quello era
  * un tentativo senza conferma, questo viene direttamente dal documento di
- * specifiche del team. Resta comunque vero che la forma ESATTA dei
- * parametri di Search e dei campi della risposta di Advanced non è stata
- * verificata contro l'API reale (nessun accesso di rete da questo
- * ambiente) — vedi i commenti in query-compiler.ts e nel mapper di
- * Advanced più sotto.
+ * specifiche del team. L'header di autenticazione ("Authorization: Bearer
+ * <chiave>") è stato verificato con richieste reali il 03/09/2026: senza
+ * "Bearer" la richiesta viene bloccata a monte con un 403 HTML generico,
+ * mai valutata dal server applicativo. Resta però ancora da chiarire QUALE
+ * valore va usato come token — sia la "Sandbox API Key" sia il "token
+ * list" ottenuti dalla dashboard OpenAPI tornano entrambi
+ * {"message":"Wrong Token"} se usati direttamente: molto probabilmente
+ * serve un passaggio di scambio (login/auth) non ancora individuato, non
+ * un problema di questo client. La forma ESATTA dei parametri di Search e
+ * dei campi della risposta di Advanced resta comunque non verificata
+ * contro l'API reale — vedi i commenti in query-compiler.ts e nel mapper
+ * di Advanced più sotto.
  */
 
 const BASE_URL = process.env.OPENAPI_IT_BASE_URL ?? "https://company.openapi.com";
@@ -41,13 +48,15 @@ async function chiamaOpenApi<T>(path: string, searchParams?: Record<string, stri
 
   try {
     const res = await fetch(url.toString(), {
-      // Un 403 generico (HTML, senza corpo JSON) osservato in produzione
-      // con la chiave sandbox è la firma tipica di un WAF/CDN che blocca
-      // richieste server-to-server prive di uno User-Agent riconoscibile,
-      // non un rifiuto applicativo della chiave — fetch di Node non ne
-      // manda uno di default.
+      // Verificato con richieste reali (03/09/2026): "Authorization: <key>"
+      // (senza "Bearer") viene bloccato con un 403 HTML generico prima
+      // ancora di raggiungere il server applicativo di OpenAPI — non è un
+      // rifiuto della chiave, è la forma dell'header che viene scartata a
+      // monte. Con "Bearer" la richiesta arriva davvero a openapi.com
+      // (risposta JSON strutturata), confermando che questo è il formato
+      // corretto per l'header Authorization.
       headers: {
-        Authorization: apiKey,
+        Authorization: `Bearer ${apiKey}`,
         Accept: "application/json",
         "User-Agent": "MOLO4.0-RadarFinanzaAgevolata/1.0 (+https://molo4punto0.it)",
       },
