@@ -1,29 +1,33 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent, type RefObject } from "react";
 import Image from "next/image";
 import { CATEGORIA_LABEL } from "@/lib/misure/valore";
 
 /* -------------------------------------------------------------------------
  * "Scopri i tuoi incentivi" — landing pubblica MOLO 4.0, lead magnet sulla
- * finanza agevolata. Deliberatamente indipendente dal design system interno
- * di Sonar 4.0 (nessun componente da src/components/ui, nessun token
- * `brand-*`/`danger-*` condiviso): questa pagina non deve cambiare colore
- * se in futuro cambia il tema del prodotto interno, e non deve mostrarne
- * il logo. Palette presa dal design system reale del sito pubblico MOLO
- * (vedi il documento di estrazione fornito dal team): rosso CTA #FF2D16,
- * inchiostro #2B2E34, blu #198FD9, verde #65BD7D — applicata qui con
- * classi Tailwind a valore arbitrario, senza toccare tailwind.config.ts.
+ * finanza agevolata. Indipendente dal design system interno di Sonar 4.0
+ * (nessun componente da src/components/ui, nessun token condiviso tra i
+ * due — né "brand", né "danger"). Palette dal design system reale del
+ * sito pubblico MOLO:
+ * rosso CTA #FF2D16, inchiostro #2B2E34, blu #198FD9, verde #65BD7D, ocra
+ * #E4A858 — e la metafora di marca dichiarata nel documento di estrazione:
+ * "la navigazione marittima come metafora dello sviluppo d'impresa:
+ * bussola, timone, imbarcazioni di carta... Il marchio rosso funziona
+ * anche come grande elemento decorativo parzialmente tagliato ai bordi
+ * delle sezioni." Qui quella metafora è reinterpretata da zero — una
+ * bussola che cerca il nord, una rotta tratteggiata, una barchetta di
+ * carta che la percorre — non è una copia delle illustrazioni raster del
+ * sito attuale, che il team ha esplicitamente chiesto di non replicare.
  *
- * Flusso in quattro passi, come richiesto dal team:
- *  1. form      — solo Partita IVA.
- *  2. scansione — barra di avanzamento animata mentre in background
- *                 /api/pubblico/match/scansione risolve l'anagrafica e
- *                 calcola i match (senza rivelarli).
- *  3. teaser    — "Abbiamo trovato N agevolazioni": elenco sfocato +
- *                 richiesta email, che sblocca l'elenco vero tramite
- *                 /api/pubblico/match (stesso endpoint del vecchio flusso).
- *  4. risultato — elenco completo + CTA telefono/calendario.
+ * Font: Poppins (corpo, invariato — è il font reale del sito MOLO) più
+ * Bricolage Grotesque per titoli e numeri in grande, caricato solo su
+ * questa pagina via @import scoped, per un contrasto di scala molto più
+ * marcato di quanto Poppins da solo permetta.
+ *
+ * Flusso in quattro passi, invariato nella logica (vedi le due API in
+ * src/app/api/pubblico/match/): form → scansione → teaser (email gate) →
+ * risultato. Qui è stato ridisegnato solo lo strato visivo.
  * ------------------------------------------------------------------------- */
 
 interface DatiAzienda {
@@ -56,13 +60,7 @@ type Stato =
   | { fase: "form" }
   | { fase: "scansione"; piva: string }
   | { fase: "teaser"; piva: string; azienda: DatiAzienda; numeroMisureTrovate: number; contatti: Contatti }
-  | {
-      fase: "risultato";
-      azienda: DatiAzienda;
-      misure: MisuraRisultato[];
-      emailInviata: boolean;
-      contatti: Contatti;
-    }
+  | { fase: "risultato"; azienda: DatiAzienda; misure: MisuraRisultato[]; emailInviata: boolean; contatti: Contatti }
   | { fase: "errore"; messaggio: string };
 
 const PASSI_SCANSIONE = [
@@ -78,6 +76,40 @@ const numFmt = new Intl.NumberFormat("it-IT");
 function formattaPiva(v: string): string {
   return v.replace(/\D/g, "").slice(0, 11);
 }
+
+/* ------------------------------ Reveal on scroll --------------------------- */
+
+function useInView<T extends HTMLElement>(): [RefObject<T>, boolean] {
+  const ref = useRef<T>(null);
+  const [visto, setVisto] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setVisto(true);
+          obs.disconnect();
+        }
+      },
+      { threshold: 0.15 },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+  return [ref, visto];
+}
+
+function Reveal({ children, delay = 0, className = "" }: { children: React.ReactNode; delay?: number; className?: string }) {
+  const [ref, visto] = useInView<HTMLDivElement>();
+  return (
+    <div ref={ref} className={`molo-reveal ${visto ? "molo-in" : ""} ${className}`} style={{ transitionDelay: `${delay}ms` }}>
+      {children}
+    </div>
+  );
+}
+
+/* ---------------------------------- App ------------------------------------ */
 
 export function MatchClient() {
   const [stato, setStato] = useState<Stato>({ fase: "form" });
@@ -99,7 +131,6 @@ export function MatchClient() {
     e.preventDefault();
     if (piva.length !== 11) return;
     setStato({ fase: "scansione", piva });
-
     try {
       const res = await fetch("/api/pubblico/match/scansione", {
         method: "POST",
@@ -111,13 +142,7 @@ export function MatchClient() {
         setStato({ fase: "errore", messaggio: json.errore ?? "Qualcosa non ha funzionato. Riprova." });
         return;
       }
-      setStato({
-        fase: "teaser",
-        piva,
-        azienda: json.azienda,
-        numeroMisureTrovate: json.numeroMisureTrovate,
-        contatti: json.contatti,
-      });
+      setStato({ fase: "teaser", piva, azienda: json.azienda, numeroMisureTrovate: json.numeroMisureTrovate, contatti: json.contatti });
     } catch {
       setStato({ fase: "errore", messaggio: "Non riusciamo a contattare il server. Controlla la connessione e riprova." });
     }
@@ -128,7 +153,6 @@ export function MatchClient() {
     if (stato.fase !== "teaser" || !consenso) return;
     setInviandoEmail(true);
     setErroreEmail(null);
-
     try {
       const res = await fetch("/api/pubblico/match", {
         method: "POST",
@@ -152,7 +176,8 @@ export function MatchClient() {
   const fasiConHero = stato.fase !== "risultato";
 
   return (
-    <div className="min-h-screen bg-white text-[#2B2E34]">
+    <div className="molo-landing min-h-screen bg-white text-[#2B2E34]">
+      <GranaOverlay />
       <IntestazioneMinima contatti={stato.fase === "teaser" || stato.fase === "risultato" ? stato.contatti : null} />
 
       {fasiConHero && (
@@ -176,7 +201,7 @@ export function MatchClient() {
         <>
           <ComeFunziona />
           <SezioneTrigger />
-          <CategorieChips />
+          <Marquee />
         </>
       )}
 
@@ -185,6 +210,15 @@ export function MatchClient() {
       <FooterLanding />
 
       <style jsx global>{`
+        @import url("https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&display=swap");
+
+        .molo-landing {
+          --molo-display: "Bricolage Grotesque", "Poppins", sans-serif;
+        }
+        .molo-display {
+          font-family: var(--molo-display);
+        }
+
         @keyframes molo-spin {
           to {
             transform: rotate(360deg);
@@ -200,14 +234,140 @@ export function MatchClient() {
             opacity: 0;
           }
         }
+        @keyframes molo-seek {
+          0%,
+          100% {
+            transform: rotate(-14deg);
+          }
+          22% {
+            transform: rotate(11deg);
+          }
+          48% {
+            transform: rotate(-7deg);
+          }
+          74% {
+            transform: rotate(16deg);
+          }
+        }
+        @keyframes molo-twinkle {
+          0%,
+          100% {
+            opacity: 0.15;
+            transform: scale(0.7);
+          }
+          50% {
+            opacity: 1;
+            transform: scale(1.25);
+          }
+        }
+        @keyframes molo-dash {
+          to {
+            stroke-dashoffset: -200;
+          }
+        }
+        @keyframes molo-marquee {
+          to {
+            transform: translateX(-50%);
+          }
+        }
+        @keyframes molo-word-in {
+          from {
+            opacity: 0;
+            transform: translateY(0.35em) rotateX(35deg);
+            filter: blur(6px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0) rotateX(0);
+            filter: blur(0);
+          }
+        }
+        @keyframes molo-glow-pulse {
+          0%,
+          100% {
+            box-shadow: 0 10px 30px -8px rgba(255, 45, 22, 0.55);
+          }
+          50% {
+            box-shadow: 0 14px 46px -6px rgba(255, 45, 22, 0.85);
+          }
+        }
+        @keyframes molo-bob {
+          0%,
+          100% {
+            transform: translateY(0px);
+          }
+          50% {
+            transform: translateY(-8px);
+          }
+        }
+
         .molo-spin {
           animation: molo-spin 5s linear infinite;
         }
         .molo-ring {
           animation: molo-ring 2.2s cubic-bezier(0.22, 1, 0.36, 1) infinite;
         }
+        .molo-seek {
+          transform-origin: 50% 50%;
+          animation: molo-seek 6.5s ease-in-out infinite;
+        }
+        .molo-twinkle {
+          animation: molo-twinkle 2.6s ease-in-out infinite;
+        }
+        .molo-route {
+          stroke-dasharray: 4 9;
+          animation: molo-dash 6s linear infinite;
+        }
+        .molo-marquee-track {
+          animation: molo-marquee 22s linear infinite;
+        }
+        .molo-word {
+          display: inline-block;
+          animation: molo-word-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+        .molo-glow-btn {
+          animation: molo-glow-pulse 2.4s ease-in-out infinite;
+        }
+        .molo-bob {
+          animation: molo-bob 3.4s ease-in-out infinite;
+        }
+
+        .molo-reveal {
+          opacity: 0;
+          transform: translateY(28px) scale(0.97);
+          filter: blur(6px);
+          transition: opacity 0.8s cubic-bezier(0.22, 1, 0.36, 1), transform 0.8s cubic-bezier(0.22, 1, 0.36, 1), filter 0.8s;
+        }
+        .molo-reveal.molo-in {
+          opacity: 1;
+          transform: none;
+          filter: blur(0);
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .molo-landing *,
+          .molo-landing *::before,
+          .molo-landing *::after {
+            animation-duration: 0.001ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.001ms !important;
+          }
+        }
       `}</style>
     </div>
+  );
+}
+
+/* ------------------------------ Grana / texture ----------------------------- */
+
+function GranaOverlay() {
+  return (
+    <svg aria-hidden className="pointer-events-none fixed inset-0 z-40 h-full w-full opacity-[0.035] mix-blend-overlay">
+      <filter id="molo-grana">
+        <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" stitchTiles="stitch" />
+      </filter>
+      <rect width="100%" height="100%" filter="url(#molo-grana)" />
+    </svg>
   );
 }
 
@@ -249,19 +409,40 @@ function HeroInterattivo(props: {
   onReset: () => void;
 }) {
   const { stato } = props;
+  const heroRef = useRef<HTMLDivElement>(null);
+  const [spot, setSpot] = useState({ x: 50, y: 30 });
+
+  function onMouseMove(e: React.MouseEvent<HTMLDivElement>) {
+    const rect = heroRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    setSpot({ x: ((e.clientX - rect.left) / rect.width) * 100, y: ((e.clientY - rect.top) / rect.height) * 100 });
+  }
 
   return (
-    <div className="relative overflow-hidden bg-[#070d1a] px-4 pb-16 pt-28 sm:pb-24 sm:pt-36">
-      {/* Sfondo: bagliori "oceano notturno" — blu e rosso MOLO, mai un blu
-          generico da SaaS: sono gli stessi due colori del marchio, solo
-          composti in chiave scura per un impatto molto più forte del
-          fondo azzurro piatto del sito attuale. */}
+    <div
+      ref={heroRef}
+      onMouseMove={onMouseMove}
+      className="relative overflow-hidden bg-[#050910] px-4 pb-16 pt-28 sm:pb-24 sm:pt-36"
+    >
+      {/* Sfondo: bagliori "oceano notturno" in blu e rosso MOLO + uno
+          spotlight che segue il cursore + il marchio a raggiera enorme e
+          tagliato ai bordi, come nel linguaggio decorativo del sito reale
+          ("il marchio rosso funziona anche come grande elemento
+          decorativo parzialmente tagliato ai bordi delle sezioni") — qui
+          portato a un'altra scala, per un impatto molto più netto. */}
       <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -left-40 -top-40 h-[34rem] w-[34rem] animate-float rounded-full bg-[#198FD9]/25 blur-[120px]" />
         <div
-          className="absolute -bottom-40 -right-24 h-[36rem] w-[36rem] animate-float rounded-full bg-[#FF2D16]/20 blur-[130px]"
-          style={{ animationDelay: "-7s" }}
+          className="absolute inset-0 opacity-70 transition-[background] duration-300"
+          style={{ background: `radial-gradient(600px circle at ${spot.x}% ${spot.y}%, rgba(25,143,217,0.16), transparent 70%)` }}
         />
+        <Image
+          src="/molo-mark.png"
+          alt=""
+          width={244}
+          height={260}
+          className="molo-seek absolute -left-[14rem] -top-[10rem] h-[46rem] w-auto opacity-[0.12] sm:-left-[18rem] sm:h-[58rem]"
+        />
+        <div className="absolute -bottom-40 -right-24 h-[36rem] w-[36rem] animate-float rounded-full bg-[#FF2D16]/20 blur-[130px]" style={{ animationDelay: "-7s" }} />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.06),transparent_55%)]" />
         <div
           className="absolute inset-0 opacity-[0.05]"
@@ -273,65 +454,80 @@ function HeroInterattivo(props: {
         />
       </div>
 
-      <div className="relative mx-auto max-w-3xl">
-        {stato.fase === "form" && <ContenutoHeroTestuale />}
-
-        <div className="mt-9">
-          {stato.fase === "form" && (
-            <CardScura>
-              <FormPivaView piva={props.piva} setPiva={props.setPiva} onSubmit={props.onScansiona} />
-            </CardScura>
-          )}
-
-          {stato.fase === "scansione" && (
-            <CardScura>
-              <ScansioneView />
-            </CardScura>
-          )}
-
-          {stato.fase === "teaser" && (
-            <CardScura>
-              <TeaserView
-                stato={stato}
-                email={props.email}
-                setEmail={props.setEmail}
-                consenso={props.consenso}
-                setConsenso={props.setConsenso}
-                inviando={props.inviandoEmail}
-                errore={props.erroreEmail}
-                onSubmit={props.onSblocca}
-              />
-            </CardScura>
-          )}
-
-          {stato.fase === "errore" && (
-            <CardScura>
-              <ErroreView messaggio={stato.messaggio} onReset={props.onReset} />
-            </CardScura>
-          )}
-        </div>
+      <div className="relative mx-auto max-w-6xl">
+        {stato.fase === "form" ? (
+          <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:gap-6">
+            <div>
+              <ContenutoHeroTestuale />
+              <div className="mt-9">
+                <CardScura>
+                  <FormPivaView piva={props.piva} setPiva={props.setPiva} onSubmit={props.onScansiona} />
+                </CardScura>
+              </div>
+            </div>
+            <SceneBussola />
+          </div>
+        ) : (
+          <div className="mx-auto max-w-xl">
+            {stato.fase === "scansione" && (
+              <CardScura>
+                <ScansioneView />
+              </CardScura>
+            )}
+            {stato.fase === "teaser" && (
+              <CardScura>
+                <TeaserView
+                  stato={stato}
+                  email={props.email}
+                  setEmail={props.setEmail}
+                  consenso={props.consenso}
+                  setConsenso={props.setConsenso}
+                  inviando={props.inviandoEmail}
+                  errore={props.erroreEmail}
+                  onSubmit={props.onSblocca}
+                />
+              </CardScura>
+            )}
+            {stato.fase === "errore" && (
+              <CardScura>
+                <ErroreView messaggio={stato.messaggio} onReset={props.onReset} />
+              </CardScura>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
 function ContenutoHeroTestuale() {
+  const parole1 = ["La", "tua", "azienda"];
+  const parole2 = ["ha", "diritto", "a", "un", "incentivo?"];
   return (
-    <div className="text-center">
-      <span className="inline-flex animate-rise-in items-center gap-2 rounded-full bg-[#FF2D16]/15 px-3.5 py-1.5 text-[12px] font-bold uppercase tracking-wider text-[#FF6A56] ring-1 ring-[#FF2D16]/30">
+    <div style={{ perspective: "600px" }}>
+      <span className="molo-word inline-flex items-center gap-2 rounded-full bg-[#FF2D16]/15 px-3.5 py-1.5 text-[12px] font-bold uppercase tracking-wider text-[#FF6A56] ring-1 ring-[#FF2D16]/30">
         Finanza agevolata · verifica gratuita
       </span>
-      <h1
-        className="mt-5 animate-rise-in text-[32px] font-extrabold leading-[1.1] tracking-tight text-white sm:text-[46px]"
-        style={{ animationDelay: "0.05s" }}
-      >
-        La tua azienda ha diritto
-        <br className="hidden sm:block" /> a un incentivo?
-        <span className="block bg-gradient-to-r from-[#FF6A56] to-[#FF2D16] bg-clip-text text-transparent">
-          Scoprilo in 60 secondi.
+      <h1 className="mt-5 text-[38px] font-extrabold leading-[1.04] tracking-tight text-white sm:text-[56px] lg:text-[64px]">
+        {parole1.map((p, i) => (
+          <span key={p} className="molo-word mr-[0.28em]" style={{ animationDelay: `${0.08 + i * 0.07}s` }}>
+            {p}
+          </span>
+        ))}
+        <br />
+        {parole2.map((p, i) => (
+          <span key={p} className="molo-word mr-[0.28em]" style={{ animationDelay: `${0.3 + i * 0.07}s` }}>
+            {p}
+          </span>
+        ))}
+        <span
+          className="molo-word molo-display block bg-gradient-to-r from-[#FF6A56] via-[#FF2D16] to-[#ff7a3d] bg-clip-text text-[46px] italic leading-[1.05] tracking-tight text-transparent sm:text-[68px] lg:text-[76px]"
+          style={{ animationDelay: "0.75s" }}
+        >
+          Scoprilo in 60&nbsp;secondi.
         </span>
       </h1>
-      <p className="mx-auto mt-4 max-w-xl animate-rise-in text-[15px] leading-relaxed text-white/60 sm:text-base" style={{ animationDelay: "0.1s" }}>
+      <p className="molo-word mt-5 max-w-xl text-[15px] leading-relaxed text-white/60 sm:text-base" style={{ animationDelay: "0.95s" }}>
         Inserisci la Partita IVA: analizziamo la tua azienda e la confrontiamo con tutti i bandi e gli incentivi di
         finanza agevolata attivi o in arrivo, monitorati ogni giorno da fonti ufficiali. Gratis, senza impegno.
       </p>
@@ -339,17 +535,98 @@ function ContenutoHeroTestuale() {
   );
 }
 
+/* --------------------------- Scena "la rotta" -------------------------------
+ * Motion graphic originale ispirato alla metafora di navigazione del
+ * brand: una bussola che cerca il nord (oscillazione elastica, non una
+ * rotazione piatta), una rotta tratteggiata che scorre, una barchetta di
+ * carta che la percorre in loop tramite <animateMotion>/<mpath> — nessuna
+ * libreria esterna, solo SVG nativo + CSS. */
+function SceneBussola() {
+  return (
+    <div className="molo-bob relative mx-auto aspect-square w-full max-w-[15rem] sm:max-w-xs lg:max-w-md">
+      <svg viewBox="0 0 400 400" className="h-full w-full" role="img" aria-label="Bussola che indica la rotta verso i tuoi incentivi">
+        <defs>
+          <radialGradient id="glowNord" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="#198FD9" stopOpacity="0.35" />
+            <stop offset="100%" stopColor="#198FD9" stopOpacity="0" />
+          </radialGradient>
+        </defs>
+
+        <circle cx="200" cy="200" r="150" fill="url(#glowNord)" />
+        <circle cx="200" cy="200" r="150" fill="none" stroke="rgba(255,255,255,0.14)" strokeWidth="1.5" />
+        <circle cx="200" cy="200" r="112" fill="none" stroke="rgba(25,143,217,0.3)" strokeWidth="1" strokeDasharray="2 6" />
+
+        {Array.from({ length: 12 }).map((_, i) => (
+          <line
+            key={i}
+            x1="200"
+            y1="52"
+            x2="200"
+            y2={i % 3 === 0 ? "68" : "62"}
+            stroke="rgba(255,255,255,0.35)"
+            strokeWidth={i % 3 === 0 ? 2 : 1}
+            transform={`rotate(${i * 30} 200 200)`}
+          />
+        ))}
+
+        {/* rotta tratteggiata dalla bussola verso l'obiettivo, in alto a destra */}
+        <path id="rottaIncentivi" d="M 165 235 C 120 300, 250 330, 320 235 S 300 90, 330 78" fill="none" stroke="#FF6A56" strokeWidth="2.5" strokeLinecap="round" className="molo-route" opacity="0.85" />
+
+        {/* scintille lungo la rotta */}
+        <circle cx="205" cy="300" r="3" fill="#65BD7D" className="molo-twinkle" style={{ animationDelay: "0.2s" }} />
+        <circle cx="300" cy="255" r="2.5" fill="#E4A858" className="molo-twinkle" style={{ animationDelay: "1s" }} />
+        <circle cx="320" cy="150" r="2.5" fill="#198FD9" className="molo-twinkle" style={{ animationDelay: "1.7s" }} />
+
+        {/* traguardo */}
+        <circle cx="330" cy="78" r="7" fill="none" stroke="#FF2D16" strokeWidth="2" className="molo-ring" style={{ transformOrigin: "330px 78px" }} />
+        <circle cx="330" cy="78" r="4.5" fill="#FF2D16" />
+
+        {/* barchetta di carta che percorre la rotta */}
+        <g>
+          <path d="M -9 4 L 9 4 L 5 10 L -5 10 Z M 0 -10 L 0 4 M 0 -10 L 8 2 L 0 4 Z" fill="#ffffff" stroke="#2B2E34" strokeWidth="1" strokeLinejoin="round">
+            <animateMotion dur="7s" repeatCount="indefinite" rotate="auto">
+              <mpath href="#rottaIncentivi" />
+            </animateMotion>
+          </path>
+        </g>
+
+        {/* ago della bussola: cerca il nord con un'oscillazione elastica */}
+        <g className="molo-seek" style={{ transformOrigin: "200px 200px" }}>
+          <path d="M200 152 L214 200 L200 248 L186 200 Z" fill="#FF2D16" />
+          <path d="M200 152 L214 200 L200 200 Z" fill="#ff8f7f" />
+          <circle cx="200" cy="200" r="9" fill="#2B2E34" />
+          <circle cx="200" cy="200" r="4" fill="#ffffff" />
+        </g>
+      </svg>
+
+      <span className="absolute right-2 top-6 inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[12px] font-bold text-[#2B2E34] shadow-[0_10px_30px_-8px_rgba(0,0,0,0.4)]">
+        <span className="h-1.5 w-1.5 rounded-full bg-[#65BD7D]" /> I tuoi incentivi
+      </span>
+    </div>
+  );
+}
+
 function CardScura({ children }: { children: React.ReactNode }) {
   return (
-    <div className="animate-rise-in rounded-[28px] bg-white p-6 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.55)] sm:p-8" style={{ animationDelay: "0.18s" }}>
-      {children}
-    </div>
+    <div className="molo-reveal molo-in rounded-[28px] bg-white p-6 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.55)] sm:p-8">{children}</div>
   );
 }
 
 /* -------------------------------- Form ---------------------------------- */
 
 function FormPivaView({ piva, setPiva, onSubmit }: { piva: string; setPiva: (v: string) => void; onSubmit: (e: FormEvent) => void }) {
+  const btnRef = useRef<HTMLButtonElement>(null);
+  function onMagnetMove(e: React.MouseEvent<HTMLButtonElement>) {
+    const r = btnRef.current?.getBoundingClientRect();
+    if (!r) return;
+    const x = (e.clientX - r.left - r.width / 2) * 0.25;
+    const y = (e.clientY - r.top - r.height / 2) * 0.35;
+    btnRef.current!.style.transform = `translate(${x}px, ${y}px)`;
+  }
+  function onMagnetLeave() {
+    if (btnRef.current) btnRef.current.style.transform = "translate(0,0)";
+  }
+
   return (
     <form onSubmit={onSubmit}>
       <label htmlFor="piva" className="mb-1.5 block text-[13px] font-semibold text-[#2B2E34]/70">
@@ -368,9 +645,12 @@ function FormPivaView({ piva, setPiva, onSubmit }: { piva: string; setPiva: (v: 
           className="h-14 flex-1 rounded-2xl border-2 border-[#2B2E34]/10 bg-[#F9F9FB] px-5 text-[17px] font-semibold tracking-wide text-[#2B2E34] outline-none transition-colors placeholder:text-[#2B2E34]/25 focus:border-[#198FD9] focus:bg-white"
         />
         <button
+          ref={btnRef}
           type="submit"
+          onMouseMove={onMagnetMove}
+          onMouseLeave={onMagnetLeave}
           disabled={piva.length !== 11}
-          className="group inline-flex h-14 shrink-0 items-center justify-center gap-2 rounded-2xl bg-[#FF2D16] px-7 text-[16px] font-bold text-white shadow-[0_10px_30px_-8px_rgba(255,45,22,0.55)] transition-all duration-200 hover:bg-[#e0210d] hover:shadow-[0_14px_36px_-8px_rgba(255,45,22,0.65)] active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
+          className="molo-glow-btn group inline-flex h-14 shrink-0 items-center justify-center gap-2 rounded-2xl bg-[#FF2D16] px-7 text-[16px] font-bold text-white transition-[transform,background-color,box-shadow] duration-200 hover:bg-[#e0210d] active:scale-[0.97] disabled:cursor-not-allowed disabled:animate-none disabled:opacity-40 disabled:shadow-none"
         >
           Scansiona ora
           <ArrowIcon className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
@@ -402,9 +682,6 @@ function ScansioneView() {
   const timerPasso = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    // Avanzamento simulato ma onesto: sale rapidamente, poi rallenta e si
-    // ferma poco prima del 100% finché la richiesta reale non è tornata —
-    // non promette mai un tempo che non può garantire.
     timerProgresso.current = setInterval(() => {
       setProgresso((p) => {
         if (p >= 92) return p;
@@ -412,36 +689,52 @@ function ScansioneView() {
         return Math.min(92, p + passo);
       });
     }, 220);
-
     timerPasso.current = setInterval(() => {
       setIndicePasso((i) => Math.min(PASSI_SCANSIONE.length - 1, i + 1));
     }, 1100);
-
     return () => {
       if (timerProgresso.current) clearInterval(timerProgresso.current);
       if (timerPasso.current) clearInterval(timerPasso.current);
     };
   }, []);
 
+  const raggio = 54;
+  const circonferenza = 2 * Math.PI * raggio;
+  const offset = circonferenza * (1 - progresso / 100);
+
   return (
     <div className="flex flex-col items-center py-4 text-center">
-      <div className="relative flex h-28 w-28 items-center justify-center">
-        <span className="molo-ring absolute inset-0 rounded-full bg-[#FF2D16]/20" />
-        <span className="molo-ring absolute inset-0 rounded-full bg-[#198FD9]/20" style={{ animationDelay: "-1.1s" }} />
-        <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-white shadow-[0_10px_30px_-8px_rgba(0,0,0,0.25)]">
-          <Image src="/molo-mark.png" alt="" width={244} height={260} className="molo-spin h-11 w-auto" />
+      <div className="relative flex h-32 w-32 items-center justify-center">
+        <span className="molo-ring absolute inset-0 rounded-full bg-[#FF2D16]/15" />
+        <span className="molo-ring absolute inset-0 rounded-full bg-[#198FD9]/15" style={{ animationDelay: "-1.1s" }} />
+        <svg viewBox="0 0 120 120" className="absolute inset-0 h-full w-full -rotate-90">
+          <circle cx="60" cy="60" r={raggio} fill="none" stroke="#2B2E34" strokeOpacity="0.08" strokeWidth="7" />
+          <circle
+            cx="60"
+            cy="60"
+            r={raggio}
+            fill="none"
+            stroke="url(#gradAnello)"
+            strokeWidth="7"
+            strokeLinecap="round"
+            strokeDasharray={circonferenza}
+            strokeDashoffset={offset}
+            style={{ transition: "stroke-dashoffset 0.25s ease-out" }}
+          />
+          <defs>
+            <linearGradient id="gradAnello" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#198FD9" />
+              <stop offset="100%" stopColor="#FF2D16" />
+            </linearGradient>
+          </defs>
+        </svg>
+        <div className="relative flex h-[4.6rem] w-[4.6rem] items-center justify-center rounded-full bg-white shadow-[0_10px_30px_-8px_rgba(0,0,0,0.25)]">
+          <Image src="/molo-mark.png" alt="" width={244} height={260} className="molo-spin h-9 w-auto" />
         </div>
       </div>
 
-      <p className="mt-6 text-3xl font-extrabold tabular-nums text-[#2B2E34]">{progresso}%</p>
+      <p className="molo-display mt-6 text-5xl font-extrabold tabular-nums text-[#2B2E34]">{progresso}%</p>
       <p className="mt-1.5 min-h-[20px] text-[14px] font-medium text-[#2B2E34]/55">{PASSI_SCANSIONE[indicePasso]}</p>
-
-      <div className="mt-5 h-2 w-full overflow-hidden rounded-full bg-[#2B2E34]/[0.07]">
-        <div
-          className="h-full rounded-full bg-gradient-to-r from-[#198FD9] to-[#FF2D16] transition-[width] duration-300 ease-out"
-          style={{ width: `${progresso}%` }}
-        />
-      </div>
     </div>
   );
 }
@@ -486,7 +779,7 @@ function TeaserView({
       <div className="mt-5 text-center">
         {trovate ? (
           <>
-            <p className="text-4xl font-extrabold tabular-nums text-[#2B2E34]">{numeroMisureTrovate}</p>
+            <p className="molo-display text-6xl font-extrabold tabular-nums text-[#2B2E34]">{numeroMisureTrovate}</p>
             <p className="mt-1 text-[15px] font-semibold text-[#2B2E34]/70">
               {numeroMisureTrovate === 1 ? "agevolazione compatibile trovata" : "agevolazioni compatibili trovate"}
             </p>
@@ -588,11 +881,11 @@ function RisultatoSezione({ stato, onReset }: { stato: Extract<Stato, { fase: "r
   const { azienda, misure, emailInviata, contatti } = stato;
 
   return (
-    <div className="bg-[#070d1a] pb-16 pt-28 sm:pb-24 sm:pt-36">
+    <div className="bg-[#050910] pb-16 pt-28 sm:pb-24 sm:pt-36">
       <div className="mx-auto max-w-4xl px-4">
-        <div className="animate-rise-in rounded-[28px] bg-white p-6 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.55)] sm:p-8">
+        <div className="molo-reveal molo-in rounded-[28px] bg-white p-6 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.55)] sm:p-8">
           <p className="text-[11px] font-bold uppercase tracking-wide text-[#2B2E34]/40">Risultato per</p>
-          <p className="mt-0.5 text-2xl font-extrabold text-[#2B2E34]">{azienda.ragioneSociale}</p>
+          <p className="molo-display mt-0.5 text-3xl font-extrabold text-[#2B2E34]">{azienda.ragioneSociale}</p>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {azienda.ateco && <ChipInfo>ATECO {azienda.ateco}</ChipInfo>}
             {azienda.regione && <ChipInfo>{[azienda.regione, azienda.provincia].filter(Boolean).join(" · ")}</ChipInfo>}
@@ -606,7 +899,7 @@ function RisultatoSezione({ stato, onReset }: { stato: Extract<Stato, { fase: "r
         </div>
 
         {misure.length === 0 ? (
-          <div className="mt-4 animate-rise-in rounded-[28px] bg-white p-8 text-center shadow-[0_30px_80px_-20px_rgba(0,0,0,0.55)]">
+          <div className="mt-4 rounded-[28px] bg-white p-8 text-center shadow-[0_30px_80px_-20px_rgba(0,0,0,0.55)]">
             <p className="text-[17px] font-bold text-[#2B2E34]">Nessuna misura compatibile al momento</p>
             <p className="mx-auto mt-2 max-w-md text-[14px] text-[#2B2E34]/55">
               In base ai dati disponibili non risultano bandi o incentivi attivi compatibili con la tua azienda in
@@ -616,11 +909,13 @@ function RisultatoSezione({ stato, onReset }: { stato: Extract<Stato, { fase: "r
           </div>
         ) : (
           <div className="mt-4 space-y-3">
-            <p className="animate-rise-in px-1 text-[13px] font-bold uppercase tracking-wide text-white/50">
+            <p className="px-1 text-[13px] font-bold uppercase tracking-wide text-white/50">
               {misure.length === 1 ? "1 agevolazione compatibile" : `${misure.length} agevolazioni compatibili`}
             </p>
             {misure.map((m, i) => (
-              <MisuraCardRisultato key={m.id} misura={m} indice={i} />
+              <Reveal key={m.id} delay={i * 70}>
+                <MisuraCardRisultato misura={m} />
+              </Reveal>
             ))}
           </div>
         )}
@@ -642,13 +937,10 @@ const ACCENTO_CATEGORIA: Record<string, string> = {
   FISCALE: "#FF2D16",
 };
 
-function MisuraCardRisultato({ misura, indice }: { misura: MisuraRisultato; indice: number }) {
+function MisuraCardRisultato({ misura }: { misura: MisuraRisultato }) {
   const accento = ACCENTO_CATEGORIA[misura.categoria] ?? "#2B2E34";
   return (
-    <div
-      className="animate-rise-in relative overflow-hidden rounded-2xl bg-white p-5 shadow-[0_20px_50px_-20px_rgba(0,0,0,0.4)] sm:p-6"
-      style={{ animationDelay: `${0.06 * indice}s` }}
-    >
+    <div className="relative overflow-hidden rounded-2xl bg-white p-5 shadow-[0_16px_40px_-18px_rgba(0,0,0,0.35)] sm:p-6">
       <span aria-hidden className="absolute inset-y-0 left-0 w-1.5" style={{ backgroundColor: accento }} />
       <div className="pl-2.5">
         <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-bold" style={{ backgroundColor: `${accento}1A`, color: accento }}>
@@ -683,9 +975,9 @@ function ContattoCTA({ contatti }: { contatti: Contatti }) {
   if (!contatti.telefono && !contatti.bookingUrl) return null;
 
   return (
-    <div className="animate-rise-in mt-5 overflow-hidden rounded-[28px] bg-white shadow-[0_30px_80px_-20px_rgba(0,0,0,0.55)]">
+    <div className="mt-5 overflow-hidden rounded-[28px] bg-white shadow-[0_30px_80px_-20px_rgba(0,0,0,0.55)]">
       <div className="bg-[#2B2E34] p-6 text-center text-white sm:p-8">
-        <p className="text-[19px] font-bold">Vuoi una mano a capire quali richiedere davvero?</p>
+        <p className="molo-display text-2xl font-bold">Vuoi una mano a capire quali richiedere davvero?</p>
         <p className="mx-auto mt-1.5 max-w-md text-[14px] text-white/55">
           Il team MOLO 4.0 verifica con te i requisiti reali e ti aiuta a preparare la domanda, senza impegno.
         </p>
@@ -728,6 +1020,8 @@ function ContattoCTA({ contatti }: { contatti: Contatti }) {
 
 /* ------------------------------- Marketing --------------------------------- */
 
+const COLORI_PASSO = ["#FF2D16", "#198FD9", "#65BD7D"];
+
 function ComeFunziona() {
   const passi = [
     { n: "1", titolo: "Inserisci la Partita IVA", testo: "Recuperiamo automaticamente i dati camerali della tua azienda: nessun modulo da compilare a mano." },
@@ -737,19 +1031,26 @@ function ComeFunziona() {
   return (
     <section className="bg-white px-4 py-16 sm:py-24">
       <div className="mx-auto max-w-5xl">
-        <p className="text-center text-[13px] font-bold uppercase tracking-wider text-[#FF2D16]">Come funziona</p>
-        <h2 className="mt-2 text-center text-[26px] font-extrabold text-[#2B2E34] sm:text-[34px]">
-          Dalla Partita IVA ai bandi giusti, in tre passaggi
-        </h2>
+        <Reveal>
+          <p className="text-center text-[13px] font-bold uppercase tracking-wider text-[#FF2D16]">Come funziona</p>
+          <h2 className="molo-display mt-2 text-center text-[30px] font-bold text-[#2B2E34] sm:text-[42px]">
+            Dalla Partita IVA ai bandi giusti, in tre passaggi
+          </h2>
+        </Reveal>
         <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-3 sm:gap-8">
-          {passi.map((p) => (
-            <div key={p.n} className="relative rounded-3xl border border-[#2B2E34]/[0.06] bg-[#F9F9FB] p-6">
-              <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#2B2E34] text-[16px] font-extrabold text-white">
-                {p.n}
-              </span>
-              <p className="mt-4 text-[16px] font-bold text-[#2B2E34]">{p.titolo}</p>
-              <p className="mt-1.5 text-[14px] leading-relaxed text-[#2B2E34]/55">{p.testo}</p>
-            </div>
+          {passi.map((p, i) => (
+            <Reveal key={p.n} delay={i * 120}>
+              <div className="relative h-full overflow-hidden rounded-3xl border border-[#2B2E34]/[0.06] bg-[#F9F9FB] p-6 transition-transform duration-300 hover:-translate-y-1.5">
+                <span
+                  className="molo-display flex h-11 w-11 items-center justify-center rounded-2xl text-[18px] font-extrabold text-white"
+                  style={{ backgroundColor: COLORI_PASSO[i] }}
+                >
+                  {p.n}
+                </span>
+                <p className="mt-4 text-[16px] font-bold text-[#2B2E34]">{p.titolo}</p>
+                <p className="mt-1.5 text-[14px] leading-relaxed text-[#2B2E34]/55">{p.testo}</p>
+              </div>
+            </Reveal>
           ))}
         </div>
       </div>
@@ -760,11 +1061,11 @@ function ComeFunziona() {
 function SezioneTrigger() {
   return (
     <section className="relative overflow-hidden bg-[#0E1420] px-4 py-16 sm:py-24">
-      <div aria-hidden className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-[0.05]">
-        <Image src="/molo-mark.png" alt="" width={244} height={260} className="molo-spin h-[28rem] w-auto" style={{ animationDuration: "40s" }} />
+      <div aria-hidden className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-[0.06]">
+        <Image src="/molo-mark.png" alt="" width={244} height={260} className="molo-seek h-[30rem] w-auto" />
       </div>
-      <div className="relative mx-auto max-w-2xl text-center">
-        <h2 className="text-[26px] font-extrabold leading-tight text-white sm:text-[34px]">Hai un investimento in programma?</h2>
+      <Reveal className="relative mx-auto max-w-2xl text-center">
+        <h2 className="molo-display text-[30px] font-bold leading-tight text-white sm:text-[42px]">Hai un investimento in programma?</h2>
         <p className="mx-auto mt-3 max-w-lg text-[15px] leading-relaxed text-white/55">
           Macchinari, digitalizzazione, formazione, nuove assunzioni: verifichiamo se può essere sostenuto da
           un&apos;agevolazione, prima che il bando giusto scada.
@@ -779,27 +1080,42 @@ function SezioneTrigger() {
         >
           Verifica la tua Partita IVA <ArrowIcon className="h-3.5 w-3.5" />
         </a>
-      </div>
+      </Reveal>
     </section>
   );
 }
 
-function CategorieChips() {
-  const categorie = [
-    { label: "Fondo perduto", colore: "#FF2D16" },
-    { label: "Credito d'imposta", colore: "#198FD9" },
-    { label: "Tasso zero", colore: "#65BD7D" },
-    { label: "Bandi regionali", colore: "#E4A858" },
-  ];
+const VOCI_MARQUEE = [
+  { label: "Fondo perduto", colore: "#FF2D16" },
+  { label: "Credito d'imposta", colore: "#198FD9" },
+  { label: "Tasso zero", colore: "#65BD7D" },
+  { label: "Bandi regionali", colore: "#E4A858" },
+  { label: "Bandi camerali", colore: "#198FD9" },
+  { label: "Investimenti 4.0", colore: "#FF2D16" },
+];
+
+function Marquee() {
+  const voci = [...VOCI_MARQUEE, ...VOCI_MARQUEE];
   return (
-    <section className="bg-white px-4 pb-16 sm:pb-24">
-      <div className="mx-auto max-w-3xl text-center">
-        <p className="text-[13px] font-bold uppercase tracking-wider text-[#2B2E34]/35">Le tipologie che monitoriamo</p>
-        <div className="mt-5 flex flex-wrap justify-center gap-2.5">
-          {categorie.map((c) => (
+    <section className="overflow-hidden border-y border-[#2B2E34]/[0.06] bg-white py-8">
+      <p className="mb-5 text-center text-[13px] font-bold uppercase tracking-wider text-[#2B2E34]/35">Le tipologie che monitoriamo</p>
+      <div className="flex w-max">
+        <div className="molo-marquee-track flex shrink-0 items-center gap-3 pr-3">
+          {voci.map((c, i) => (
             <span
-              key={c.label}
-              className="rounded-full px-4 py-2 text-[13.5px] font-bold"
+              key={`${c.label}-${i}`}
+              className="molo-display shrink-0 rounded-full px-5 py-2.5 text-[15px] font-bold"
+              style={{ backgroundColor: `${c.colore}14`, color: c.colore }}
+            >
+              {c.label}
+            </span>
+          ))}
+        </div>
+        <div aria-hidden className="molo-marquee-track flex shrink-0 items-center gap-3 pr-3">
+          {voci.map((c, i) => (
+            <span
+              key={`dup-${c.label}-${i}`}
+              className="molo-display shrink-0 rounded-full px-5 py-2.5 text-[15px] font-bold"
               style={{ backgroundColor: `${c.colore}14`, color: c.colore }}
             >
               {c.label}
@@ -815,7 +1131,7 @@ function FooterLanding() {
   return (
     <footer className="bg-[#2B2E34] px-4 py-10 text-center sm:py-12">
       <Image src="/molo-logo.png" alt="MOLO 4.0" width={300} height={89} className="mx-auto h-7 w-auto opacity-90 brightness-0 invert" />
-      <p className="mt-3 text-[13px] font-semibold text-white/50">Governa la crescita.</p>
+      <p className="molo-display mt-3 text-[14px] font-bold text-white/50">Governa la crescita.</p>
       <p className="mx-auto mt-4 max-w-md text-[12px] leading-relaxed text-white/30">
         Il matching mostrato è sempre indicativo: verifica sempre i requisiti completi sulla fonte ufficiale prima di
         procedere. © {new Date().getFullYear()} MOLO 4.0. Tutti i diritti riservati.
