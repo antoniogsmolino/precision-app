@@ -227,10 +227,27 @@ async function sincronizzaMatch(
   );
 }
 
+/**
+ * Stati di pubblicazione che possono generare un match — sia per un
+ * prospect interno (dashboard) sia, soprattutto, per un lead pubblico
+ * sulla landing "Finanza Agevolata Match": PUBBLICATA (confermata, a mano
+ * o di default per le misure del vecchio motore) e AUTO_VERIFICATA (il
+ * nuovo motore bandi l'ha giudicata affidabile senza intervento umano,
+ * confidence sui campi critici sopra soglia — vedi calcolaStatoPubblicazione
+ * in motore-bandi/validazione.ts). DRAFT e DA_VERIFICARE (nuovo motore,
+ * confidence insufficiente, in coda al backoffice) e ARCHIVIATA restano
+ * fuori: prima di questo filtro nessuna query di matching lo applicava,
+ * quindi una misura non ancora confermata dal team poteva comunque
+ * comparire tra i risultati di un lead reale sulla landing pubblica.
+ */
+const STATI_PUBBLICAZIONE_ABILITATI_AL_MATCH = ["PUBBLICATA", "AUTO_VERIFICATA"] as const;
+
 /** Ricalcola tutti i match di un singolo prospect contro tutte le misure aperte. */
 export async function ricalcolaMatchPerProspect(prospectId: string) {
   const prospect = await prisma.prospect.findUniqueOrThrow({ where: { id: prospectId } });
-  const misure = await prisma.misura.findMany();
+  const misure = await prisma.misura.findMany({
+    where: { statoPubblicazione: { in: [...STATI_PUBBLICAZIONE_ABILITATI_AL_MATCH] } },
+  });
 
   const coppieValide = misure
     .map((misura) => ({ misura, esito: valutaMatch(datiAziendaDaProspect(prospect), misura) }))
@@ -243,6 +260,15 @@ export async function ricalcolaMatchPerProspect(prospectId: string) {
 /** Ricalcola tutti i match di una singola misura contro tutti i prospect. */
 export async function ricalcolaMatchPerMisura(misuraId: string) {
   const misura = await prisma.misura.findUniqueOrThrow({ where: { id: misuraId } });
+
+  // Una misura non ancora confermata (DRAFT/DA_VERIFICARE) o archiviata non
+  // deve generare match — se ne aveva già (es. era PUBBLICATA ed è stata
+  // riportata in revisione), sincronizzaMatch([], ...) li rimuove.
+  if (!STATI_PUBBLICAZIONE_ABILITATI_AL_MATCH.includes(misura.statoPubblicazione as (typeof STATI_PUBBLICAZIONE_ABILITATI_AL_MATCH)[number])) {
+    await sincronizzaMatch([], { misuraId });
+    return;
+  }
+
   const prospects = await prisma.prospect.findMany();
 
   const coppieValide = prospects
@@ -257,7 +283,7 @@ export async function ricalcolaMatchPerMisura(misuraId: string) {
 export async function ricalcolaTuttiIMatch() {
   const [prospects, misure] = await Promise.all([
     prisma.prospect.findMany(),
-    prisma.misura.findMany(),
+    prisma.misura.findMany({ where: { statoPubblicazione: { in: [...STATI_PUBBLICAZIONE_ABILITATI_AL_MATCH] } } }),
   ]);
 
   const coppieValide: { prospectId: string; misuraId: string; criteriEsito: string[] }[] = [];

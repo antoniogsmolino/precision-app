@@ -899,54 +899,109 @@ function ErroreView({ messaggio, onReset }: { messaggio: string; onReset: () => 
 
 function RisultatoSezione({ stato, onReset }: { stato: Extract<Stato, { fase: "risultato" }>; onReset: () => void }) {
   const { azienda, misure, emailInviata, contatti } = stato;
+  const [categoriaAttiva, setCategoriaAttiva] = useState<string | null>(null);
+  const categorie = Array.from(new Set(misure.map((m) => m.categoria))).sort(
+    (a, b) => ordineCategoria(a) - ordineCategoria(b),
+  );
+  const misureFiltrate = categoriaAttiva ? misure.filter((m) => m.categoria === categoriaAttiva) : misure;
 
   return (
     <div className="bg-gradient-to-b from-[#040c18] to-[#0a2340] pb-16 pt-28 sm:pb-24 sm:pt-36">
-      <div className="mx-auto max-w-4xl px-4 xl:max-w-5xl">
-        <div className="molo-reveal molo-in rounded-[28px] bg-white p-6 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.55)] sm:p-8">
-          <p className="text-[11px] font-bold uppercase tracking-wide text-[#2B2E34]/40">Risultato per</p>
-          <p className="molo-display mt-0.5 text-3xl font-extrabold text-[#2B2E34]">{azienda.ragioneSociale}</p>
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {azienda.ateco && <ChipInfo>ATECO {azienda.ateco}</ChipInfo>}
-            {azienda.regione && <ChipInfo>{[azienda.regione, azienda.provincia].filter(Boolean).join(" · ")}</ChipInfo>}
-            {azienda.numeroDipendenti != null && <ChipInfo>{numFmt.format(azienda.numeroDipendenti)} dipendenti</ChipInfo>}
+      <div className="mx-auto max-w-6xl px-4 xl:max-w-[88rem] 2xl:max-w-[100rem]">
+        <div className="molo-reveal molo-in flex flex-col gap-4 rounded-[28px] bg-white/[0.05] p-6 ring-1 ring-white/10 backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between sm:p-7">
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-wide text-white/40">Risultato per</p>
+            <p className="molo-display mt-1 text-[26px] font-extrabold text-white sm:text-3xl">{azienda.ragioneSociale}</p>
+            {emailInviata && (
+              <p className="mt-2 inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#65BD7D]">
+                <CheckIcon className="h-4 w-4" /> Ti abbiamo anche mandato questo elenco via email.
+              </p>
+            )}
           </div>
-          {emailInviata && (
-            <p className="mt-3.5 inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#65BD7D]">
-              <CheckIcon className="h-4 w-4" /> Ti abbiamo anche mandato questo elenco via email.
-            </p>
-          )}
+          <div className="flex flex-wrap gap-1.5 sm:justify-end">
+            {azienda.ateco && <ChipInfoScura>ATECO {azienda.ateco}</ChipInfoScura>}
+            {azienda.regione && <ChipInfoScura>{[azienda.regione, azienda.provincia].filter(Boolean).join(" · ")}</ChipInfoScura>}
+            {azienda.numeroDipendenti != null && <ChipInfoScura>{numFmt.format(azienda.numeroDipendenti)} dipendenti</ChipInfoScura>}
+          </div>
         </div>
 
         {misure.length === 0 ? (
-          <div className="mt-4 rounded-[28px] bg-white p-8 text-center shadow-[0_30px_80px_-20px_rgba(0,0,0,0.55)]">
-            <p className="text-[17px] font-bold text-[#2B2E34]">Nessuna misura compatibile al momento</p>
-            <p className="mx-auto mt-2 max-w-md text-[14px] text-[#2B2E34]/55">
+          <div className="molo-reveal molo-in mt-4 rounded-[28px] bg-white/[0.05] p-10 text-center ring-1 ring-white/10 backdrop-blur-sm">
+            <p className="text-[18px] font-bold text-white">Nessuna misura compatibile al momento</p>
+            <p className="mx-auto mt-2 max-w-md text-[14px] text-white/55">
               In base ai dati disponibili non risultano bandi o incentivi attivi compatibili con la tua azienda in
               questo momento. Aggiorniamo il monitoraggio ogni giorno: ti avviseremo via email non appena ne
               troveremo uno, oppure contattaci direttamente.
             </p>
           </div>
         ) : (
-          <div className="mt-4 space-y-3">
-            <p className="px-1 text-[13px] font-bold uppercase tracking-wide text-white/50">
-              {misure.length === 1 ? "1 agevolazione compatibile" : `${misure.length} agevolazioni compatibili`}
-            </p>
-            {misure.map((m, i) => (
-              <Reveal key={m.id} delay={i * 70}>
-                <MisuraCardRisultato misura={m} />
-              </Reveal>
-            ))}
-          </div>
+          <>
+            <div className="mt-10 flex flex-col gap-4 sm:mt-14 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-[13px] font-bold uppercase tracking-wider text-[#FF6A56]">Risultato</p>
+                <h2 className="molo-display mt-1 text-[clamp(1.75rem,1.3rem+1.8vw,2.75rem)] font-extrabold text-white">
+                  {misure.length === 1 ? "1 agevolazione compatibile" : `${misure.length} agevolazioni compatibili`}
+                </h2>
+              </div>
+              {categorie.length > 1 && (
+                <div className="flex flex-wrap gap-2">
+                  <FiltroChip attivo={categoriaAttiva === null} colore="#198FD9" onClick={() => setCategoriaAttiva(null)}>
+                    Tutte · {misure.length}
+                  </FiltroChip>
+                  {categorie.map((c) => (
+                    <FiltroChip key={c} attivo={categoriaAttiva === c} colore={ACCENTO_CATEGORIA[c] ?? "#2B2E34"} onClick={() => setCategoriaAttiva(c)}>
+                      {CATEGORIA_LABEL[c] ?? c} · {misure.filter((m) => m.categoria === c).length}
+                    </FiltroChip>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="mt-6 grid grid-cols-1 gap-4 sm:mt-8 md:grid-cols-2 xl:grid-cols-3">
+              {misureFiltrate.map((m, i) => (
+                <Reveal key={m.id} delay={(i % 3) * 90}>
+                  <MisuraCardRisultato misura={m} />
+                </Reveal>
+              ))}
+            </div>
+          </>
         )}
 
         <ContattoCTA contatti={contatti} />
 
-        <button onClick={onReset} className="mx-auto mt-6 block text-[13px] font-semibold text-white/40 hover:text-white/70">
+        <button onClick={onReset} className="mx-auto mt-8 block text-[13px] font-semibold text-white/40 hover:text-white/70">
           ← Verifica un&apos;altra Partita IVA
         </button>
       </div>
     </div>
+  );
+}
+
+function ChipInfoScura({ children }: { children: React.ReactNode }) {
+  return <span className="rounded-full bg-white/10 px-2.5 py-1 text-[12px] font-semibold text-white/70 ring-1 ring-white/15">{children}</span>;
+}
+
+function FiltroChip({
+  attivo,
+  colore,
+  onClick,
+  children,
+}: {
+  attivo: boolean;
+  colore: string;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`inline-flex items-center rounded-full px-3.5 py-1.5 text-[12.5px] font-bold transition-colors ${
+        attivo ? "text-white shadow-[0_8px_20px_-8px_rgba(0,0,0,0.5)]" : "bg-white/[0.06] text-white/55 ring-1 ring-white/10 hover:bg-white/10 hover:text-white/80"
+      }`}
+      style={attivo ? { backgroundColor: colore } : undefined}
+    >
+      {children}
+    </button>
   );
 }
 
@@ -956,35 +1011,41 @@ const ACCENTO_CATEGORIA: Record<string, string> = {
   CAMERALE: "#E4A858",
   FISCALE: "#FF2D16",
 };
+const ORDINE_CATEGORIE = ["NAZIONALE", "REGIONALE", "CAMERALE", "FISCALE"];
+function ordineCategoria(c: string): number {
+  const i = ORDINE_CATEGORIE.indexOf(c);
+  return i === -1 ? 99 : i;
+}
 
 function MisuraCardRisultato({ misura }: { misura: MisuraRisultato }) {
   const accento = ACCENTO_CATEGORIA[misura.categoria] ?? "#2B2E34";
   return (
-    <div className="relative overflow-hidden rounded-2xl bg-white p-5 shadow-[0_16px_40px_-18px_rgba(0,0,0,0.35)] sm:p-6">
-      <span aria-hidden className="absolute inset-y-0 left-0 w-1.5" style={{ backgroundColor: accento }} />
-      <div className="pl-2.5">
-        <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-bold" style={{ backgroundColor: `${accento}1A`, color: accento }}>
-          {CATEGORIA_LABEL[misura.categoria] ?? misura.categoria}
-        </span>
-        <p className="mt-2.5 text-[17px] font-bold leading-snug text-[#2B2E34]">{misura.titolo}</p>
-        <p className="mt-0.5 text-[13px] text-[#2B2E34]/45">{misura.ente}</p>
-        <p className="mt-3 text-[14px] leading-relaxed text-[#2B2E34]/65">{misura.descrizioneBreve}</p>
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[#2B2E34]/[0.06] pt-3.5">
-          <div>
-            <span className="block text-[17px] font-extrabold text-[#2B2E34]">{misura.valoreFormattato}</span>
-            <span className="text-[12.5px] text-[#2B2E34]/40">
-              {misura.scadenzaStimata ? "Scadenza da verificare" : `Scadenza ${misura.scadenzaFormattata}`}
-            </span>
-          </div>
-          <a
-            href={misura.linkFonteUfficiale}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-[13px] font-bold text-[#198FD9] hover:text-[#12699e]"
-          >
-            Fonte ufficiale <ArrowIcon className="h-3 w-3" />
-          </a>
+    <div className="relative flex h-full flex-col overflow-hidden rounded-2xl bg-white p-5 shadow-[0_16px_40px_-18px_rgba(0,0,0,0.35)] transition-transform duration-300 hover:-translate-y-1.5 sm:p-6">
+      <span aria-hidden className="absolute inset-x-0 top-0 h-1.5" style={{ backgroundColor: accento }} />
+      <span
+        className="mt-1.5 inline-flex w-fit items-center rounded-full px-2.5 py-0.5 text-[11px] font-bold"
+        style={{ backgroundColor: `${accento}1A`, color: accento }}
+      >
+        {CATEGORIA_LABEL[misura.categoria] ?? misura.categoria}
+      </span>
+      <p className="mt-3 line-clamp-2 text-[16px] font-bold leading-snug text-[#2B2E34]">{misura.titolo}</p>
+      <p className="mt-0.5 text-[12.5px] text-[#2B2E34]/45">{misura.ente}</p>
+      <p className="mt-3 line-clamp-2 flex-1 text-[13.5px] leading-relaxed text-[#2B2E34]/65">{misura.descrizioneBreve}</p>
+      <div className="mt-4 flex items-end justify-between gap-3 border-t border-[#2B2E34]/[0.06] pt-3.5">
+        <div>
+          <span className="block text-[16px] font-extrabold text-[#2B2E34]">{misura.valoreFormattato}</span>
+          <span className="text-[12px] text-[#2B2E34]/40">
+            {misura.scadenzaStimata ? "Scadenza da verificare" : `Scad. ${misura.scadenzaFormattata}`}
+          </span>
         </div>
+        <a
+          href={misura.linkFonteUfficiale}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex shrink-0 items-center gap-1 text-[12.5px] font-bold text-[#198FD9] hover:text-[#12699e]"
+        >
+          Fonte <ArrowIcon className="h-3 w-3" />
+        </a>
       </div>
     </div>
   );
@@ -995,17 +1056,21 @@ function ContattoCTA({ contatti }: { contatti: Contatti }) {
   if (!contatti.telefono && !contatti.bookingUrl) return null;
 
   return (
-    <div className="mt-5 overflow-hidden rounded-[28px] bg-white shadow-[0_30px_80px_-20px_rgba(0,0,0,0.55)]">
-      <div className="bg-[#2B2E34] p-6 text-center text-white sm:p-8">
-        <p className="molo-display text-2xl font-bold">Vuoi una mano a capire quali richiedere davvero?</p>
-        <p className="mx-auto mt-1.5 max-w-md text-[14px] text-white/55">
+    <div className="molo-reveal molo-in relative mt-10 overflow-hidden rounded-[28px] shadow-[0_30px_80px_-20px_rgba(0,0,0,0.55)] sm:mt-14">
+      <div className="relative overflow-hidden bg-[#2B2E34] p-8 text-center text-white sm:p-12">
+        <div aria-hidden className="pointer-events-none absolute -right-16 -top-24 h-72 w-72 rounded-full bg-[#FF2D16]/25 blur-[110px]" />
+        <div aria-hidden className="pointer-events-none absolute -bottom-24 -left-16 h-72 w-72 rounded-full bg-[#198FD9]/20 blur-[110px]" />
+        <p className="molo-display relative text-[clamp(1.5rem,1.2rem+1vw,2.25rem)] font-bold">
+          Vuoi una mano a capire quali richiedere davvero?
+        </p>
+        <p className="relative mx-auto mt-2 max-w-md text-[14.5px] text-white/55">
           Il team MOLO 4.0 verifica con te i requisiti reali e ti aiuta a preparare la domanda, senza impegno.
         </p>
-        <div className="mt-5 flex flex-wrap justify-center gap-3">
+        <div className="relative mt-6 flex flex-wrap justify-center gap-3">
           {contatti.bookingUrl && (
             <button
               onClick={() => setCalendarioAperto((v) => !v)}
-              className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-[#FF2D16] px-6 text-[14px] font-bold text-white shadow-[0_10px_30px_-8px_rgba(255,45,22,0.55)] transition-all hover:bg-[#e0210d] active:scale-[0.97]"
+              className="molo-glow-btn inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-[#FF2D16] px-6 text-[14px] font-bold text-white shadow-[0_10px_30px_-8px_rgba(255,45,22,0.55)] transition-all hover:bg-[#e0210d] active:scale-[0.97]"
             >
               {calendarioAperto ? "Nascondi calendario" : "Prenota una consulenza gratuita"}
             </button>
@@ -1022,7 +1087,7 @@ function ContattoCTA({ contatti }: { contatti: Contatti }) {
       </div>
 
       {contatti.bookingUrl && calendarioAperto && (
-        <div className="animate-fade-in p-3 sm:p-4">
+        <div className="animate-fade-in bg-white p-3 sm:p-4">
           <iframe src={contatti.bookingUrl} title="Prenota una consulenza gratuita" className="h-[640px] w-full rounded-2xl border border-[#2B2E34]/[0.08]" />
           <a
             href={contatti.bookingUrl}
