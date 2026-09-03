@@ -1129,7 +1129,11 @@ function ContattoCTA({
   emailInviata: boolean;
 }) {
   const [calendarioAperto, setCalendarioAperto] = useState(false);
-  if (!contatti.telefono && !contatti.bookingUrl) return null;
+  // Il box resta sempre visibile (richiesta esplicita, 03/09/2026) anche
+  // prima che MOLO_PHONE_NUMBER/MOLO_BOOKING_URL siano configurate su
+  // Vercel: i due pulsanti sotto restano comunque condizionati ciascuno
+  // al proprio valore, quindi appariranno da soli non appena quelle env
+  // var saranno impostate, senza bisogno di un altro deploy.
 
   return (
     <div className="molo-reveal molo-in relative mt-10 overflow-hidden rounded-[28px] shadow-[0_30px_80px_-20px_rgba(0,0,0,0.6)] sm:mt-14">
