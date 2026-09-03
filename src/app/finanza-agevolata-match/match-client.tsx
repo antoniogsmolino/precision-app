@@ -454,9 +454,9 @@ function HeroInterattivo(props: {
         />
       </div>
 
-      <div className="relative mx-auto max-w-6xl">
+      <div className="relative mx-auto max-w-6xl xl:max-w-[88rem] 2xl:max-w-[104rem]">
         {stato.fase === "form" ? (
-          <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[1.05fr_0.95fr] lg:gap-6">
+          <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[1.05fr_0.95fr] lg:gap-10 xl:gap-16">
             <div>
               <ContenutoHeroTestuale />
               <div className="mt-6 lg:hidden">
@@ -509,10 +509,10 @@ function ContenutoHeroTestuale() {
   const parole = ["La", "tua", "azienda", "ha", "diritto", "a", "un", "incentivo?"];
   return (
     <div style={{ perspective: "600px" }}>
-      <span className="molo-word inline-flex items-center gap-2 rounded-full bg-[#FF2D16]/15 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-[#FF6A56] ring-1 ring-[#FF2D16]/30">
+      <span className="molo-word inline-flex items-center gap-2 rounded-full bg-[#FF2D16]/15 px-3 py-1 text-[clamp(11px,0.6vw+9px,13px)] font-bold uppercase tracking-wider text-[#FF6A56] ring-1 ring-[#FF2D16]/30">
         Finanza agevolata · verifica gratuita
       </span>
-      <h1 className="mt-3.5 text-[30px] font-extrabold leading-[1.08] tracking-tight text-white sm:text-[40px] lg:text-[44px]">
+      <h1 className="mt-3.5 text-[clamp(1.875rem,1.3rem+1.7vw,3.125rem)] font-extrabold leading-[1.08] tracking-tight text-white">
         {parole.map((p, i) => (
           <span key={p} className="molo-word mr-[0.28em]" style={{ animationDelay: `${0.06 + i * 0.05}s` }}>
             {p}
@@ -525,7 +525,10 @@ function ContenutoHeroTestuale() {
           Scoprilo in 60&nbsp;secondi.
         </span>
       </h1>
-      <p className="molo-word mt-3.5 max-w-md text-[14px] leading-relaxed text-white/60 sm:text-[15px]" style={{ animationDelay: "0.75s" }}>
+      <p
+        className="molo-word mt-3.5 max-w-md text-[14px] leading-relaxed text-white/60 sm:text-[15px] lg:max-w-lg xl:max-w-xl"
+        style={{ animationDelay: "0.75s" }}
+      >
         Inserisci la Partita IVA: la confrontiamo con tutti i bandi e gli incentivi attivi o in arrivo, monitorati
         ogni giorno da fonti ufficiali. Gratis, senza impegno.
       </p>
@@ -541,7 +544,7 @@ function ContenutoHeroTestuale() {
  * libreria esterna, solo SVG nativo + CSS. */
 function SceneBussola() {
   return (
-    <div className="molo-bob relative mx-auto aspect-square w-full max-w-[15rem] sm:max-w-xs lg:max-w-md">
+    <div className="molo-bob relative mx-auto aspect-square w-full max-w-[15rem] sm:max-w-xs lg:max-w-md xl:max-w-lg 2xl:max-w-xl">
       <svg viewBox="0 0 400 400" className="h-full w-full" role="img" aria-label="Bussola che indica la rotta verso i tuoi incentivi">
         <defs>
           <radialGradient id="glowNord" cx="50%" cy="50%" r="50%">
@@ -880,7 +883,7 @@ function RisultatoSezione({ stato, onReset }: { stato: Extract<Stato, { fase: "r
 
   return (
     <div className="bg-[#050910] pb-16 pt-28 sm:pb-24 sm:pt-36">
-      <div className="mx-auto max-w-4xl px-4">
+      <div className="mx-auto max-w-4xl px-4 xl:max-w-5xl">
         <div className="molo-reveal molo-in rounded-[28px] bg-white p-6 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.55)] sm:p-8">
           <p className="text-[11px] font-bold uppercase tracking-wide text-[#2B2E34]/40">Risultato per</p>
           <p className="molo-display mt-0.5 text-3xl font-extrabold text-[#2B2E34]">{azienda.ragioneSociale}</p>
@@ -1028,14 +1031,14 @@ function ComeFunziona() {
   ];
   return (
     <section className="bg-white px-4 py-16 sm:py-24">
-      <div className="mx-auto max-w-5xl">
+      <div className="mx-auto max-w-5xl xl:max-w-6xl 2xl:max-w-7xl">
         <Reveal>
           <p className="text-center text-[13px] font-bold uppercase tracking-wider text-[#FF2D16]">Come funziona</p>
-          <h2 className="molo-display mt-2 text-center text-[30px] font-bold text-[#2B2E34] sm:text-[42px]">
+          <h2 className="molo-display mt-2 text-center text-[clamp(1.875rem,1.4rem+1.4vw,3rem)] font-bold text-[#2B2E34]">
             Dalla Partita IVA ai bandi giusti, in tre passaggi
           </h2>
         </Reveal>
-        <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-3 sm:gap-8">
+        <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-3 sm:gap-8 xl:gap-10">
           {passi.map((p, i) => (
             <Reveal key={p.n} delay={i * 120}>
               <div className="relative h-full overflow-hidden rounded-3xl border border-[#2B2E34]/[0.06] bg-[#F9F9FB] p-6 transition-transform duration-300 hover:-translate-y-1.5">
@@ -1062,8 +1065,8 @@ function SezioneTrigger() {
       <div aria-hidden className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-[0.06]">
         <Image src="/molo-mark.png" alt="" width={244} height={260} className="molo-seek h-[30rem] w-auto" />
       </div>
-      <Reveal className="relative mx-auto max-w-2xl text-center">
-        <h2 className="molo-display text-[30px] font-bold leading-tight text-white sm:text-[42px]">Hai un investimento in programma?</h2>
+      <Reveal className="relative mx-auto max-w-2xl text-center xl:max-w-3xl">
+        <h2 className="molo-display text-[clamp(1.875rem,1.4rem+1.4vw,3rem)] font-bold leading-tight text-white">Hai un investimento in programma?</h2>
         <p className="mx-auto mt-3 max-w-lg text-[15px] leading-relaxed text-white/55">
           Macchinari, digitalizzazione, formazione, nuove assunzioni: verifichiamo se può essere sostenuto da
           un&apos;agevolazione, prima che il bando giusto scada.
