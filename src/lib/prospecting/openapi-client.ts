@@ -49,13 +49,20 @@ async function chiamaOpenApi<T>(path: string, searchParams?: Record<string, stri
       // 401/403/402 (auth/credito) non sono transitori: ritentarli non
       // serve, vanno segnalati e il job va sospeso (vedi §15 specifiche).
       const transitorio = res.status >= 500 || res.status === 429;
+      // Diagnostica (mai la chiave): la forma esatta dell'errore di OpenAPI
+      // non è stata verificata contro l'API reale — questo log in
+      // produzione (Vercel → Logs) è il modo più veloce per capire se è
+      // un problema di autenticazione, di path o altro.
+      const corpo = await res.text().catch(() => "");
+      console.error(`[openapi-client] ${url.pathname} -> HTTP ${res.status}: ${corpo.slice(0, 500)}`);
       return { ok: false, status: res.status, dati: null, transitorio };
     }
 
     const json = (await res.json()) as T;
     return { ok: true, status: res.status, dati: json, transitorio: false };
-  } catch {
+  } catch (err) {
     // Errore di rete/timeout: transitorio, ritentabile con backoff da chi chiama.
+    console.error(`[openapi-client] ${path} -> errore di rete/timeout:`, err instanceof Error ? err.message : err);
     return { ok: false, status: 0, dati: null, transitorio: true };
   }
 }
