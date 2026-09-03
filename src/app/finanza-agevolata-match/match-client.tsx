@@ -422,7 +422,7 @@ function HeroInterattivo(props: {
     <div
       ref={heroRef}
       onMouseMove={onMouseMove}
-      className="relative overflow-hidden bg-[#050910] px-4 pb-10 pt-24 sm:pb-16 sm:pt-28 lg:pt-24"
+      className="relative flex min-h-dvh flex-col overflow-hidden bg-[#050910] px-4 pb-10 pt-24 sm:pt-28 lg:pt-24"
     >
       {/* Sfondo: bagliori "oceano notturno" in blu e rosso MOLO + uno
           spotlight che segue il cursore + il marchio a raggiera enorme e
@@ -454,7 +454,7 @@ function HeroInterattivo(props: {
         />
       </div>
 
-      <div className="relative mx-auto max-w-6xl xl:max-w-[88rem] 2xl:max-w-[104rem]">
+      <div className="relative mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center py-6 xl:max-w-[88rem] 2xl:max-w-[104rem]">
         {stato.fase === "form" ? (
           <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[1.05fr_0.95fr] lg:gap-10 xl:gap-16">
             <div>
